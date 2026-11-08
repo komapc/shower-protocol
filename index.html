@@ -1,0 +1,629 @@
+<title>Душевой протокол</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: одна колонка «пульт душевой»: кабинки сверху, под ними два графика на общей оси времени, внизу сравнение стратегий. */
+:root {
+  --bg: #eaf0f0;          /* кафель */
+  --surface: #fbfdfd;
+  --fg: #10202a;
+  --muted: #566a73;
+  --line: #d2dee0;
+  --grid: #e3eaeb;
+  --accent: #0d7480;      /* бирюза смесителя */
+  --accent-soft: #d3eaec;
+  --roll: rgba(13,116,128,0.09);
+  --cold: #2a78d6;
+  --hot: #e34948;
+  --mid: #cfcac0;
+  --good: #0ca30c;
+  --critical: #d03b3b;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300;
+  --f-display: "Unbounded", "Golos Text", system-ui, sans-serif;
+  --f-body: "Golos Text", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1618; --surface: #152125; --fg: #e4edef; --muted: #93a7ae; --line: #26373c; --grid: #1d2b2f;
+    --accent: #3fb6c1; --accent-soft: #173b40; --roll: rgba(63,182,193,0.10);
+    --cold: #3987e5; --hot: #e66767; --mid: #5a5e5c;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1618; --surface: #152125; --fg: #e4edef; --muted: #93a7ae; --line: #26373c; --grid: #1d2b2f;
+  --accent: #3fb6c1; --accent-soft: #173b40; --roll: rgba(63,182,193,0.10);
+  --cold: #3987e5; --hot: #e66767; --mid: #5a5e5c;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 15px; line-height: 1.5;
+}
+.wrap {
+  max-width: 1080px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 48px;
+  display: grid; gap: 20px;
+}
+header { display: grid; gap: 6px; }
+h1 { font-family: var(--f-display); font-weight: 700; font-size: clamp(22px, 4vw, 32px); margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+h2 { font-family: var(--f-display); font-weight: 500; font-size: 15px; margin: 0; letter-spacing: 0.01em; }
+.lead { margin: 0; color: var(--muted); max-width: 70ch; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+
+/* controls */
+.controls { display: grid; gap: 14px; grid-template-columns: 1fr; }
+@media (min-width: 820px) { .controls { grid-template-columns: 1.1fr 1fr; } }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button {
+  flex: 1; font: 600 14px var(--f-body); padding: 9px 8px; background: transparent; color: var(--fg);
+  border: 0; border-right: 1px solid var(--line); cursor: pointer;
+}
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
+.seg button:focus-visible, .btn:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.strat-note { margin: 0; color: var(--muted); font-size: 13.5px; min-height: 3em; }
+.sliders { display: grid; gap: 10px 16px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+.sl { display: grid; gap: 2px; }
+.sl label { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
+.sl label b { color: var(--fg); font-family: var(--f-mono); font-weight: 600; }
+.sl input[type=range] { width: 100%; accent-color: var(--accent); }
+.checks { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13.5px; }
+.checks label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+.checks input { accent-color: var(--accent); }
+
+.transport { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.btn {
+  font: 600 14px var(--f-body); padding: 7px 14px; border-radius: 8px; border: 1px solid var(--accent);
+  background: var(--accent); color: var(--surface); cursor: pointer; min-width: 112px;
+}
+.btn.ghost { background: transparent; color: var(--accent); min-width: 0; }
+#scrub { flex: 1; min-width: 160px; accent-color: var(--accent); }
+.clock { font-family: var(--f-mono); font-size: 14px; min-width: 64px; text-align: right; }
+
+/* showers */
+.stalls { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+.stall { border: 1px solid var(--line); border-radius: 8px; padding: 10px; display: grid; gap: 6px; background: var(--bg); }
+.stall.off { opacity: 0.45; }
+.stall-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+.who { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.num { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+.stall svg { width: 100%; height: 86px; display: block; }
+.temp { font-family: var(--f-mono); font-size: 20px; font-weight: 600; }
+.temp small { font-size: 12px; color: var(--muted); font-weight: 400; }
+.chip { font-size: 11.5px; padding: 1px 7px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.chip.ok { border-color: var(--good); color: var(--fg); }
+.chip.ok::before { content: "✓ "; color: var(--good); }
+.chip.bad::before { content: "! "; color: var(--critical); }
+.valves { display: grid; grid-template-columns: auto 1fr; gap: 3px 6px; align-items: center; font-size: 11px; color: var(--muted); }
+.meter { height: 5px; background: var(--grid); border-radius: 3px; overflow: hidden; }
+.meter i { display: block; height: 100%; border-radius: 3px; }
+
+/* charts */
+.chart-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12.5px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend .ln { width: 16px; height: 2px; border-radius: 1px; }
+.legend .ln.dash { background: repeating-linear-gradient(90deg, var(--muted) 0 4px, transparent 4px 7px); }
+.canvas-box { position: relative; width: 100%; }
+canvas { display: block; width: 100%; cursor: crosshair; touch-action: pan-y; }
+#cT { height: 300px; }
+#cP { height: 170px; }
+.tip {
+  position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+  padding: 6px 8px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); white-space: nowrap; z-index: 2;
+}
+.tip .r { display: flex; align-items: center; gap: 6px; font-family: var(--f-mono); }
+.caption { margin: 0; font-size: 12.5px; color: var(--muted); }
+
+/* table */
+.tbl-box { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 520px; }
+th, td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: right; }
+th:first-child, td:first-child { text-align: left; }
+th { font-weight: 600; color: var(--muted); font-size: 12.5px; letter-spacing: 0.02em; }
+td.best { font-weight: 700; }
+td.best::after { content: " ★"; color: var(--accent); }
+td.fail { color: var(--muted); }
+.badge { font-size: 11px; margin-left: 6px; padding: 0 6px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); font-family: var(--f-mono); }
+.badge.bad { border-color: var(--critical); color: var(--fg); }
+tr.cur-col td:nth-child(1) { font-weight: 600; }
+
+.findings { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.finding { border-left: 3px solid var(--accent); padding: 2px 0 2px 12px; }
+.finding b { display: block; font-size: 14px; }
+.finding p { margin: 2px 0 0; color: var(--muted); font-size: 13.5px; }
+.pair-row { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 13.5px; }
+.pair-row .sl { flex: 1; min-width: 180px; }
+.pair-row[aria-disabled="true"] .sl, .pair-row[aria-disabled="true"] #reseed { opacity: 0.45; pointer-events: none; }
+.btn.small { min-width: 0; padding: 4px 10px; font-size: 13px; }
+.belief { font-size: 11.5px; color: var(--muted); font-family: var(--f-mono); }
+.belief.bad { color: var(--critical); font-weight: 600; }
+.stats { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.stat { display: grid; gap: 2px; }
+.stat b { font-family: var(--f-mono); font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 12.5px; color: var(--muted); }
+.rules { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; }
+.rules li::marker { color: var(--accent); font-weight: 600; }
+details { font-size: 13.5px; color: var(--muted); }
+details summary { cursor: pointer; color: var(--fg); font-weight: 600; }
+details code { font-family: var(--f-mono); font-size: 12.5px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Душевой протокол</h1>
+    <p class="lead">Несколько душевых на одной горячей трубе. Кто-то приходит, кто-то уходит, температура доходит до лейки через <span class="mono" id="leadL">5</span>&nbsp;с. Симуляция сравнивает, как быстро все снова оказываются в своей зоне комфорта (±0,5&nbsp;°C) при трёх способах крутить краны.</p>
+  </header>
+
+  <section class="panel controls" aria-label="Параметры">
+    <div style="display:grid;gap:8px;min-width:0">
+      <div class="seg" role="group" aria-label="Стратегия">
+        <button id="st-naive" data-s="naive" aria-pressed="false">Наивно</button>
+        <button id="st-patient" data-s="patient" aria-pressed="false">Терпеливо</button>
+        <button id="st-relay" data-s="relay" aria-pressed="true">Эстафета</button>
+      </div>
+      <p class="strat-note" id="stratNote"></p>
+      <div class="checks" id="relayChecks">
+        <label><input type="checkbox" id="adaptive" checked> Темп T подстраивается под напор</label>
+        <label><input type="checkbox" id="early" checked> Старожилы прыгают сразу</label>
+      </div>
+      <div class="pair-row" id="pairRow" aria-disabled="true">
+        <label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="pair" style="accent-color:var(--accent)"> Последние двое приходят почти одновременно</label>
+        <div class="sl"><label for="sD">Второй через <b id="vD">1 с</b></label><input type="range" id="sD" min="0" max="10" step="0.5" value="1"></div>
+        <button class="btn ghost small" id="reseed" title="Другие случайные паузы и ошибки табличек">Другой случай <span class="mono" id="vSeed">#2</span></button>
+      </div>
+    </div>
+    <div class="sliders">
+      <div class="sl"><label for="sN">Сколько людей придёт <b id="vN">3</b></label><input type="range" id="sN" min="1" max="6" step="1" value="3"></div>
+      <div class="sl"><label for="sL">Задержка температуры <b id="vL">5 с</b></label><input type="range" id="sL" min="2" max="10" step="0.5" value="5"></div>
+      <div class="sl"><label for="sP">Задержка напора <b id="vP">0,5 с</b></label><input type="range" id="sP" min="0" max="5" step="0.25" value="0.5"></div>
+      <div class="sl"><label for="sTol">Ошибка личной таблички <b id="vTol">±6 %</b></label><input type="range" id="sTol" min="0" max="25" step="1" value="6"></div>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="Кабинки">
+    <div class="transport">
+      <button class="btn" id="play">▶ Запустить</button>
+      <button class="btn ghost" id="speed" title="Скорость воспроизведения">×5</button>
+      <input type="range" id="scrub" min="0" max="1000" step="1" value="1000" aria-label="Время">
+      <span class="clock" id="clock">0 с</span>
+    </div>
+    <div class="stalls" id="stalls"></div>
+  </section>
+
+  <section class="panel" aria-label="Температура">
+    <div class="chart-head">
+      <h2>Температура у лейки, °C</h2>
+      <div class="legend" id="legT"></div>
+    </div>
+    <div class="canvas-box"><canvas id="cT"></canvas><div class="tip" id="tip" hidden></div></div>
+    <p class="caption">Пунктир — цель каждого. Затемнённые полосы — перекличка. Отрезки под осью: сколько секунд ушло, чтобы все вернулись в зону ±0,5&nbsp;°C.</p>
+  </section>
+
+  <section class="panel" aria-label="Напор">
+    <div class="chart-head">
+      <h2>Напор в горячей трубе</h2>
+      <div class="legend">
+        <span><i class="ln" style="background:var(--muted);opacity:.5"></i>в трубе</span>
+        <span><i class="ln" style="background:var(--accent)"></i>как ощущается</span>
+      </div>
+    </div>
+    <div class="canvas-box"><canvas id="cP"></canvas><div class="tip" id="tip2" hidden></div></div>
+    <p class="caption" id="pCaption">Каждый всплеск — мырг. Метки внизу: кто мыргнул. Счётчик над событием показывает, сколько мыргов реально различимо в ощущаемом напоре.</p>
+  </section>
+
+  <section class="panel" aria-label="Сравнение">
+    <h2>Сколько секунд до схождения после каждого события</h2>
+    <div class="tbl-box"><table id="tbl"></table></div>
+    <p class="caption">Те же параметры, все три стратегии. «Не сошлось» — до следующего события кто-то так и остался вне зоны. Дискомфорт — сумма по людям выхода за ±0,5&nbsp;°C, в градусо-секундах; меньше лучше.</p>
+  </section>
+
+  <section class="panel" aria-label="Двое одновременно" id="pairPanel">
+    <h2>Если двое приходят почти одновременно</h2>
+    <p class="caption" style="font-size:14px;color:var(--fg)">Открыть горячую и услышать напор можно только вместе: слушать, не открыв кран, нельзя. Поэтому оба уже стоят под водой, когда выясняется, что их двое. В протокол добавлены четыре правила:</p>
+    <ol class="rules">
+      <li><b>Слушай, потом мыргай.</b> Открыв горячую, выжди случайную паузу (до <span class="mono" id="cwOut">3</span>&nbsp;с) и мыргай синхро, только если за это время ничего не услышал. Услышал чужое синхро — молчи до конца его переклички, потом повтори.</li>
+      <li><b>Глушилка.</b> Старожил видел две ступеньки напора, а синхро услышал одно — значит, синхро слились. В конце переклички он закрывает горячую надолго (5T). Оба новеньких забывают результат и пробуют снова, с вдвое большей паузой.</li>
+      <li><b>Пересчёт.</b> В пустой душевой глушить некому: оба думают «я один». Это ловит проверка прыжка. Если после прыжка по табличке промах больше 2&nbsp;°C, значит N неверное: мыргни синхро ещё раз без ступеньки напора, все ответят, и каждый возьмёт N по числу мыргов.</li>
+      <li><b>Уходящий тоже ждёт тишины.</b> Ступенька напора посреди переклички сбивает счёт мыргов.</li>
+    </ol>
+    <div id="pairStatsBox" style="display:grid;gap:8px">
+      <h2 id="pairStatsTitle">30 случайных прогонов с текущими настройками</h2>
+      <div class="stats" id="pairStats"></div>
+      <p class="caption" id="pairStatsNote"></p>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="Выводы">
+    <h2>Что показала симуляция</h2>
+    <div class="findings">
+      <div class="finding"><b>Наивные не сходятся</b><p>Крутить горячую раз в секунду при задержке 5&nbsp;с — это раскачка. С двумя и больше людьми соседи раскачивают друг друга, и к следующему событию никто не в зоне.</p></div>
+      <div class="finding"><b>Терпение работает, но медленно</b><p>Горячая на метке и мелкие шаги холодной с паузой: всё сходится, но около 35&nbsp;с на событие.</p></div>
+      <div class="finding"><b>Эстафета: 8–20&nbsp;с</b><p>Упреждающий прыжок по табличке плюс одна поправка по Ньютону. Время ограничено в основном задержкой воды и ошибкой таблички.</p></div>
+      <div class="finding"><b>Старожилам перекличка не нужна</b><p>Они и так знают новое N: было N, напор упал, значит N+1. Если прыгать сразу, а не в конце переклички, дискомфорт падает, и тем сильнее, чем медленнее напор. Перекличка нужна только новенькому.</p></div>
+      <div class="finding"><b>Мырг — это тоже скачок температуры</b><p>При медленном напоре мырги длинные, и через L секунд они приходят к лейкам горячими и холодными толчками. Поставьте «Задержку напора» на 3&nbsp;с: эстафета начинает проигрывать терпеливым по дискомфорту.</p></div>
+      <div class="finding"><b>Без подстройки темпа мырги сливаются</b><p>Задержка напора 3&nbsp;с и выключенный адаптивный темп: короткие мырги сглаживаются, счётчик показывает 0 из 3. Новенький берёт строку таблички для неверного N и исправляет это уже поправками.</p></div>
+    </div>
+    <details>
+      <summary>Модель</summary>
+      <p>Каждый кран — проводимость <code>g</code>. Горячая магистраль: давление <code>p<sub>h</sub> = 1 / (1 + 2·Σg<sub>h</sub>)</code>, холодная: <code>p<sub>c</sub> = 1 / (1 + 0,35·Σg<sub>c</sub>)</code>. Горячая связь сильная, холодная слабая. Расход <code>q = g·p</code>, температура смеси <code>(q<sub>h</sub>·60 + q<sub>c</sub>·15) / (q<sub>h</sub> + q<sub>c</sub>)</code>, у лейки она появляется через L секунд. Пока вода не дошла, у новенького течёт 22&nbsp;°C из трубы. Напор ощущается с чистой задержкой 0,4·P и сглаживанием τ&nbsp;=&nbsp;0,2·P.</p>
+      <p><b>Наивно:</b> раз в секунду горячая += 0,02·ошибка; если горячая упёрлась в край, крутят холодную. <b>Терпеливо:</b> горячая на метке, холодная шагом не больше 0,08, пауза L+1&nbsp;с. <b>Эстафета:</b> горячая на метке; при событии перекличка мыргами (горячая закрыта на T), прыжок холодной на значение из личной таблички для нового N, затем каждые L+1&nbsp;с поправка на 80% ошибки по наклону своего крана.</p>
+      <p>Мырги в ощущаемом напоре считаются честно: пересечения половины амплитуды одного крана. Если мыргов насчитано не столько, сколько было, новенький получает неверное N. Сценарий: люди приходят каждые 45&nbsp;с, после прихода последнего уходит второй.</p>
+    </details>
+  </section>
+</div>
+
+<script src="sim.js"></script>
+<script>
+(function () {
+  'use strict';
+  const S = window.ShowerSim;
+  const NAMES = ['Аня', 'Боря', 'Вика', 'Гоша', 'Даша', 'Егор'];
+  const NOTES = {
+    naive: 'Каждый раз в секунду крутит горячую на величину ошибки и не ждёт, пока вода дойдёт. Если горячая упёрлась в край, крутит холодную.',
+    patient: 'Горячая на общей метке. Холодную крутят маленьким шагом, потом ждут L+1 секунд и смотрят снова.',
+    relay: 'Горячая на метке. При событии перекличка мыргами, затем все прыгают холодной на своё деление из таблички для нового N и делают одну-две точные поправки.',
+  };
+  const st = { strategy: 'relay', N: 3, L: 5, P: 0.5, tol: 6, adaptive: true, early: true, pair: false, dGap: 1, seed: 7, t: null, playing: false, speed: 5 };
+  let runs = {}, cur = null, hoverT = null;
+
+  const $ = (id) => document.getElementById(id);
+  const css = () => { const c = getComputedStyle(document.documentElement); const g = (n) => c.getPropertyValue(n).trim(); return { fg: g('--fg'), muted: g('--muted'), line: g('--line'), grid: g('--grid'), accent: g('--accent'), roll: g('--roll'), surface: g('--surface'), cold: g('--cold'), hot: g('--hot'), mid: g('--mid'), crit: g('--critical'), s: [1,2,3,4,5,6].map(i => g('--s' + i)) }; };
+  const fmt = (x, d = 1) => x.toFixed(d).replace('.', ',');
+
+  function recompute() {
+    const base = { N: st.N, L: st.L, P: st.P, adaptive: st.adaptive, earlyJump: st.early, tableErr: st.tol / 100, pairGap: st.pair ? st.dGap : null, seed: st.seed };
+    for (const s of ['naive', 'patient', 'relay']) runs[s] = S.simulate(Object.assign({ strategy: s }, base));
+    cur = runs[st.strategy];
+    if (st.t == null || st.t > cur.T_END || !st.playing) st.t = st.playing ? Math.min(st.t || 0, cur.T_END) : cur.T_END;
+    buildStalls(); buildLegend(); buildTable(); render(); schedulePairStats(base);
+  }
+
+  // ---------- stalls ----------
+  function buildStalls() {
+    const box = $('stalls'); box.innerHTML = '';
+    cur.agents.forEach((a, i) => {
+      const d = document.createElement('div'); d.className = 'stall'; d.id = 'stall' + i;
+      d.innerHTML = `<div class="stall-head"><span class="who"><i class="dot" style="background:var(--s${i + 1})"></i>${NAMES[i]}</span><span class="num">цель ${fmt(a.target)}°</span></div>
+        <div class="belief"></div>
+        <svg viewBox="0 0 120 86" aria-hidden="true"><path d="M60 4 V16" stroke="var(--muted)" stroke-width="3" fill="none"/><path d="M40 16 H80 L74 24 H46 Z" fill="var(--muted)"/><g class="stream"></g></svg>
+        <div class="stall-head"><span class="temp">—</span><span class="chip">—</span></div>
+        <div class="valves"><span>гор</span><div class="meter"><i class="mh" style="background:var(--hot)"></i></div><span>хол</span><div class="meter"><i class="mc" style="background:var(--cold)"></i></div></div>`;
+      box.appendChild(d);
+    });
+  }
+  function mixColor(T, c) {
+    const lerp = (a, b, t) => { const pa = hex(a), pb = hex(b); return `rgb(${pa.map((v, i) => Math.round(v + (pb[i] - v) * t)).join(',')})`; };
+    if (T < 37.5) return lerp(c.cold, c.mid, Math.max(0, Math.min(1, (T - 22) / 15.5)));
+    return lerp(c.mid, c.hot, Math.max(0, Math.min(1, (T - 37.5) / 12)));
+  }
+  function hex(h) { h = h.replace('#', ''); if (h.length === 3) h = h.split('').map(x => x + x).join(''); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); }
+  function updateStalls(c) {
+    const k = Math.min(cur.steps - 1, Math.max(0, Math.round(st.t / cur.dt)));
+    cur.agents.forEach((a, i) => {
+      const el = $('stall' + i); if (!el) return;
+      const T = a.felt[k];
+      const present = T != null;
+      el.classList.toggle('off', !present);
+      const tEl = el.querySelector('.temp'), chip = el.querySelector('.chip'), g = el.querySelector('.stream'), bl = el.querySelector('.belief');
+      if (st.strategy === 'relay' && present) {
+        const num = a.num[k], b = a.belief[k], nt = cur.nTrue[k];
+        if (!num) { bl.textContent = 'слушает, номера нет'; bl.className = 'belief'; }
+        else { bl.textContent = `№${num} · думает N=${b}` + (b !== nt ? ` (на деле ${nt})` : ''); bl.className = 'belief' + (b !== nt ? ' bad' : ''); }
+      } else { bl.textContent = st.strategy === 'relay' ? '' : ' '; bl.className = 'belief'; }
+      if (!present) {
+        const arrived = a.felt.slice(0, k).some(v => v != null);
+        tEl.innerHTML = '—'; chip.className = 'chip'; chip.textContent = arrived ? 'ушёл' : 'ещё не пришёл';
+        g.innerHTML = ''; el.querySelector('.mh').style.width = '0'; el.querySelector('.mc').style.width = '0';
+        return;
+      }
+      const e = T - a.target;
+      tEl.innerHTML = `${fmt(T)}<small>°C</small>`;
+      if (Math.abs(e) <= cur.params.band) { chip.className = 'chip ok'; chip.textContent = 'в зоне'; }
+      else { chip.className = 'chip bad'; chip.textContent = e > 0 ? `горячо +${fmt(e)}` : `холодно ${fmt(e)}`; }
+      const flow = Math.min(1, ((a.gh[k] || 0) * 0.5 + (a.gc[k] || 0) * 0.9) * 1.6);
+      const col = mixColor(T, c);
+      let s = '';
+      for (let j = 0; j < 7; j++) { const x = 48 + j * 4; s += `<line x1="${x}" y1="26" x2="${x + (j - 3) * 4 * (0.5 + flow)}" y2="84" stroke="${col}" stroke-width="${1.2 + flow * 1.6}" stroke-linecap="round" opacity="${0.5 + flow * 0.5}"/>`; }
+      g.innerHTML = s;
+      el.querySelector('.mh').style.width = Math.min(100, (a.gh[k] || 0) * 100) + '%';
+      el.querySelector('.mc').style.width = Math.min(100, (a.gc[k] || 0) / 1.2 * 100) + '%';
+    });
+  }
+
+  function buildLegend() {
+    const L = $('legT'); L.innerHTML = '';
+    cur.agents.forEach((a, i) => { L.insertAdjacentHTML('beforeend', `<span><i class="ln" style="background:var(--s${i + 1})"></i>${NAMES[i]}</span>`); });
+    L.insertAdjacentHTML('beforeend', `<span><i class="ln dash"></i>цель</span>`);
+  }
+
+  // ---------- table ----------
+  function evName(ev) { return (ev.kind === 'entry' ? 'Пришла/пришёл ' : 'Ушла/ушёл ').replace(/.*/, ev.kind === 'entry' ? '+ ' : '− ') + NAMES[ev.who]; }
+  function buildTable() {
+    const ss = ['naive', 'patient', 'relay'], hd = { naive: 'Наивно', patient: 'Терпеливо', relay: 'Эстафета' };
+    let h = '<thead><tr><th>Событие</th>' + ss.map(s => `<th>${hd[s]}${s === st.strategy ? ' ·' : ''}</th>`).join('') + '</tr></thead><tbody>';
+    const n = runs.relay.events.length;
+    for (let i = 0; i < n; i++) {
+      const vals = ss.map(s => runs[s].events[i] ? runs[s].events[i].settle : null);
+      const ok = vals.filter(v => v != null); const best = ok.length ? Math.min(...ok) : null;
+      h += `<tr><td>${evName(runs.relay.events[i])}</td>` + ss.map((s, j) => {
+        const ev = runs[s].events[i]; const v = vals[j];
+        let badge = '';
+        if (s === 'relay' && ev) {
+          if (ev.collided) badge += `<span class="badge bad" title="Синхро слились с чужим">коллизия</span>`;
+          if (ev.jammed) badge += `<span class="badge" title="Старожил подал глушилку, новенькие пробуют заново">глушилка ×${ev.jammed}</span>`;
+          if (ev.recount) badge += `<span class="badge" title="Промах после прыжка больше 2 °C, перекличка заново">пересчёт</span>`;
+          if (ev.deferred && !ev.collided) badge += `<span class="badge" title="Услышал чужое синхро и ждал">ждал</span>`;
+        }
+        if (ev && ev.mergedWithNext) return `<td class="fail">вместе со следующим${badge}</td>`;
+        if (v == null) return `<td class="fail">не сошлось${badge}</td>`;
+        return `<td class="mono${v === best ? ' best' : ''}">${fmt(v)} с${badge}</td>`;
+      }).join('') + '</tr>';
+    }
+    const ds = ss.map(s => runs[s].discomfort), bd = Math.min(...ds);
+    h += '<tr><td>Дискомфорт, °C·с</td>' + ds.map(d => `<td class="mono${d === bd ? ' best' : ''}">${Math.round(d)}</td>`).join('') + '</tr></tbody>';
+    $('tbl').innerHTML = h;
+  }
+
+  // ---------- статистика пар ----------
+  let statsTimer = null;
+  function schedulePairStats(base) {
+    $('cwOut').textContent = fmt(cur.cw0, 0);
+    const box = $('pairStatsBox');
+    if (!st.pair) { box.hidden = true; return; }
+    box.hidden = false; $('pairStats').innerHTML = '<span class="caption">считаю…</span>';
+    clearTimeout(statsTimer);
+    statsTimer = setTimeout(() => {
+      const R = 30; let col = 0, jam = 0, rec = 0, silent = 0, wrong = 0, nc = 0; const set = [];
+      for (let sd = 1; sd <= R; sd++) {
+        const r = S.simulate(Object.assign({}, base, { strategy: 'relay', seed: sd }));
+        const evs = r.events;
+        if (evs.some(e => e.collided)) col++;
+        if (evs.some(e => e.jammed)) jam++;
+        if (evs.some(e => e.recount)) rec++;
+        if (r.rolls.some(x => x.silentCollision)) silent++;
+        if (r.wrongBelief > 0) wrong++;
+        const last = evs.filter(e => e.kind === 'entry').pop();
+        if (last.settle == null) nc++; else set.push(last.settle);
+      }
+      set.sort((a, b) => a - b);
+      const med = set.length ? fmt(set[set.length >> 1], 0) + ' с' : '—';
+      const items = [
+        [col, 'синхро слились (коллизия)'], [jam, 'поймано глушилкой'], [rec, 'было пересчётов'],
+        [wrong, 'кто-то знает неверное N перед уходом'], [med, 'медиана: пара сошлась за'], [nc, 'пара не сошлась за 45 с'],
+      ];
+      $('pairStats').innerHTML = items.map(([v, l]) => `<div class="stat"><b>${typeof v === 'number' ? v + '<small style="font-size:13px;color:var(--muted)"> / ' + R + '</small>' : v}</b><span>${l}</span></div>`).join('');
+      $('pairStatsNote').textContent = (st.N === 2 ? 'Двое в пустой душевой: глушить некому, коллизию ловит только пересчёт после промаха. ' : 'Пока под душем есть старожил, коллизию ловит его глушилка. ') +
+        `Прогоны «Эстафеты»: второй приходит через ${fmt(st.dGap, st.dGap % 1 ? 1 : 0)} с, задержка напора ${fmt(st.P, 2).replace(/,?0+$/, '') || '0'} с.`;
+    }, 120);
+  }
+
+  // ---------- canvas helpers ----------
+  function setup(cv) {
+    const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    const w = Math.max(10, r.width), h = Math.max(10, r.height);
+    if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+    const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+    return { ctx, w, h };
+  }
+  const M = { l: 40, r: 12, t: 24, b: 30 };
+  function xs(w) { return (t) => M.l + (t / cur.T_END) * (w - M.l - M.r); }
+  function tickStep(T) { return T <= 80 ? 10 : T <= 200 ? 15 : 30; }
+
+  function drawAxesX(ctx, w, h, x, c) {
+    ctx.fillStyle = c.muted; ctx.font = '11px ' + getComputedStyle(document.body).getPropertyValue('--f-mono'); ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    const stp = tickStep(cur.T_END);
+    const minGap = 34; let lastX = -1e9;
+    for (let t = 0; t <= cur.T_END + 1e-6; t += stp) { const px = x(t); if (px - lastX < minGap) continue; lastX = px; ctx.fillText(t + ' с', px, h - M.b + 14); }
+  }
+  function drawRoll(ctx, h, x, c) {
+    ctx.fillStyle = c.roll;
+    for (const r of cur.rolls) if (r.end != null) ctx.fillRect(x(r.sync), M.t, Math.max(1, x(r.end) - x(r.sync)), h - M.t - M.b);
+  }
+  function drawEvents(ctx, h, x, c, labels) {
+    ctx.save(); ctx.strokeStyle = c.muted; ctx.setLineDash([3, 3]); ctx.lineWidth = 1;
+    ctx.font = '12px ' + getComputedStyle(document.body).getPropertyValue('--f-body'); ctx.textBaseline = 'bottom'; ctx.textAlign = 'left'; ctx.fillStyle = c.fg;
+    let lastEnd = -1e9, row = 0;
+    for (const ev of cur.events) {
+      const px = Math.round(x(ev.t)) + 0.5;
+      ctx.beginPath(); ctx.moveTo(px, M.t); ctx.lineTo(px, h - M.b); ctx.stroke();
+      if (!labels) continue;
+      const txt = (ev.kind === 'entry' ? '+' : '−') + NAMES[ev.who];
+      const tw = ctx.measureText(txt).width;
+      let lx = px + 3;
+      if (lx < lastEnd + 4) lx = lastEnd + 4; // пара рядом: подпись встаёт следом
+      ctx.fillText(txt, lx, M.t - 4); lastEnd = lx + tw;
+    }
+    ctx.restore();
+  }
+  function drawPlayhead(ctx, h, x, c) {
+    if (st.t >= cur.T_END - 1e-6) return;
+    const px = Math.round(x(st.t)) + 0.5;
+    ctx.strokeStyle = c.accent; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(px, M.t - 2); ctx.lineTo(px, h - M.b); ctx.stroke();
+  }
+  function drawCross(ctx, h, x, c) {
+    if (hoverT == null) return;
+    const px = Math.round(x(hoverT)) + 0.5;
+    ctx.strokeStyle = c.muted; ctx.lineWidth = 1; ctx.setLineDash([]); ctx.beginPath(); ctx.moveTo(px, M.t); ctx.lineTo(px, h - M.b); ctx.stroke();
+  }
+
+  // ---------- temperature chart ----------
+  const Y0 = 20, Y1 = 56;
+  function drawT(c) {
+    const { ctx, w, h } = setup($('cT'));
+    const x = xs(w), y = (v) => M.t + (1 - (v - Y0) / (Y1 - Y0)) * (h - M.t - M.b);
+    drawRoll(ctx, h, x, c);
+    ctx.strokeStyle = c.grid; ctx.lineWidth = 1; ctx.fillStyle = c.muted; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.font = '11px ' + getComputedStyle(document.body).getPropertyValue('--f-mono');
+    for (let v = 20; v <= 55; v += 5) { const py = Math.round(y(v)) + 0.5; ctx.beginPath(); ctx.moveTo(M.l, py); ctx.lineTo(w - M.r, py); ctx.stroke(); ctx.fillText(v + '°', M.l - 6, py); }
+    drawAxesX(ctx, w, h, x, c);
+    drawEvents(ctx, h, x, c, true);
+    const kMax = Math.min(cur.steps - 1, Math.round(st.t / cur.dt));
+    ctx.save(); ctx.beginPath(); ctx.rect(M.l, M.t, w - M.l - M.r, h - M.t - M.b); ctx.clip();
+    cur.agents.forEach((a, i) => {
+      // target
+      ctx.strokeStyle = c.s[i]; ctx.globalAlpha = 0.7; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+      let on = false; ctx.beginPath();
+      for (let k = 0; k <= kMax; k += 2) { if (a.felt[k] == null) { on = false; continue; } const px = x(k * cur.dt), py = y(a.target); if (!on) { ctx.moveTo(px, py); on = true; } else ctx.lineTo(px, py); }
+      ctx.stroke(); ctx.globalAlpha = 1; ctx.setLineDash([]);
+      // felt
+      ctx.strokeStyle = c.s[i]; ctx.lineWidth = 2; ctx.lineJoin = 'round'; on = false; ctx.beginPath();
+      for (let k = 0; k <= kMax; k++) { const v = a.felt[k]; if (v == null) { on = false; continue; } const px = x(k * cur.dt), py = y(Math.max(Y0 - 2, Math.min(Y1 + 2, v))); if (!on) { ctx.moveTo(px, py); on = true; } else ctx.lineTo(px, py); }
+      ctx.stroke();
+    });
+    ctx.restore();
+    // settle bars under axis
+    ctx.font = '11px ' + getComputedStyle(document.body).getPropertyValue('--f-mono'); ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+    const by = h - M.b + 4;
+    for (const ev of cur.events) {
+      if (ev.settle == null) { if (ev.t + 1 <= st.t) { ctx.fillStyle = c.crit; ctx.fillText('✕', x(ev.t) + 2, by + 1); } continue; }
+      if (ev.t + ev.settle > st.t) continue;
+      const x0 = x(ev.t), x1 = x(ev.t + ev.settle);
+      ctx.fillStyle = c.accent; ctx.fillRect(x0, by - 1, Math.max(2, x1 - x0), 3);
+    }
+    drawPlayhead(ctx, h, x, c); drawCross(ctx, h, x, c);
+  }
+
+  // ---------- pressure chart ----------
+  function drawP(c) {
+    const { ctx, w, h } = setup($('cP'));
+    const x = xs(w);
+    let lo = 1, hi = 0;
+    for (let k = 0; k < cur.steps; k++) { const a = cur.phRaw[k], b = cur.phFelt[k]; for (const v of [a, b]) if (v != null) { lo = Math.min(lo, v); hi = Math.max(hi, v); } }
+    if (hi <= lo) { lo = 0; hi = 1; }
+    const pad = (hi - lo) * 0.1; lo -= pad; hi += pad;
+    const y = (v) => M.t + (1 - (v - lo) / (hi - lo)) * (h - M.t - M.b);
+    drawRoll(ctx, h, x, c);
+    ctx.strokeStyle = c.grid; ctx.lineWidth = 1; ctx.fillStyle = c.muted; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.font = '11px ' + getComputedStyle(document.body).getPropertyValue('--f-mono');
+    const ticks = 3; for (let i = 0; i <= ticks; i++) { const v = lo + (hi - lo) * i / ticks; const py = Math.round(y(v)) + 0.5; ctx.beginPath(); ctx.moveTo(M.l, py); ctx.lineTo(w - M.r, py); ctx.stroke(); ctx.fillText(fmt(v, 2), M.l - 6, py); }
+    drawAxesX(ctx, w, h, x, c);
+    drawEvents(ctx, h, x, c, false);
+    const kMax = Math.min(cur.steps - 1, Math.round(st.t / cur.dt));
+    const line = (arr, col, lw, alpha) => { ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.globalAlpha = alpha; let on = false; ctx.beginPath(); for (let k = 0; k <= kMax; k++) { const v = arr[k]; if (v == null) { on = false; continue; } const px = x(k * cur.dt), py = y(v); if (!on) { ctx.moveTo(px, py); on = true; } else ctx.lineTo(px, py); } ctx.stroke(); ctx.globalAlpha = 1; };
+    line(cur.phRaw, c.muted, 1, 0.5);
+    line(cur.phFelt, c.accent, 2, 1);
+    // pulse ticks & counts
+    ctx.font = '10px ' + getComputedStyle(document.body).getPropertyValue('--f-mono'); ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    let lastEnd = -1e9;
+    for (const r of cur.rolls) {
+      for (const pl of r.pulses) {
+        if (pl.t > st.t) continue;
+        const px = x(pl.t), pw = Math.max(3, x(pl.t + pl.dur) - px);
+        ctx.fillStyle = r.kind === 'jam' ? c.crit : c.s[pl.who];
+        ctx.fillRect(Math.round(px), h - M.b - 6, Math.round(pw), 6);
+      }
+      if (r.end > st.t) continue;
+      let txt, bad = false;
+      if (r.kind === 'jam') { txt = 'стоп'; bad = true; }
+      else if (r.detected != null) {
+        bad = r.detected !== r.expected || r.jammed || r.silentCollision;
+        txt = (r.kind === 'recount' ? 'пересчёт ' : '') + `${r.detected}/${r.expected}` + (r.silentCollision ? ' слились' : '');
+      } else continue;
+      ctx.font = '11px ' + getComputedStyle(document.body).getPropertyValue('--f-mono'); ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+      let lx = x(r.sync) + 3; if (lx < lastEnd + 6) lx = lastEnd + 6;
+      if (lx + ctx.measureText(txt).width > w - M.r) continue;
+      ctx.fillStyle = bad ? c.crit : c.fg; ctx.fillText(txt, lx, M.t - 4); lastEnd = lx + ctx.measureText(txt).width;
+    }
+    drawPlayhead(ctx, h, x, c); drawCross(ctx, h, x, c);
+    $('pCaption').textContent = st.strategy === 'relay'
+      ? `Темп T = ${fmt(cur.Tunit, 1)} с, шаг эстафеты ${fmt(cur.hop, 1)} с. Каждый всплеск — мырг, засечки внизу окрашены по тому, кто мыргнул. Над событием: сколько мыргов различимо в ощущаемом напоре из скольких отправленных.`
+      : 'В этой стратегии перекличек нет: видны только ступеньки от входов и выходов и подёргивания от того, как люди крутят горячую.';
+  }
+
+  function render() {
+    const c = css();
+    drawT(c); drawP(c); updateStalls(c);
+    $('scrub').value = Math.round(st.t / cur.T_END * 1000);
+    $('clock').textContent = Math.round(st.t) + ' с';
+  }
+
+  // ---------- hover ----------
+  function hover(cv, tipId) {
+    const tip = $(tipId);
+    const move = (ev) => {
+      const r = cv.getBoundingClientRect(); const px = ev.clientX - r.left;
+      const t = (px - M.l) / (r.width - M.l - M.r) * cur.T_END;
+      if (t < 0 || t > cur.T_END) { leave(); return; }
+      hoverT = t; const k = Math.round(t / cur.dt);
+      let rows = `<div class="mono" style="color:var(--muted)">${fmt(t, 1)} с</div>`;
+      if (cv.id === 'cT') cur.agents.forEach((a, i) => { const v = a.felt[k]; if (v != null) rows += `<div class="r"><i class="dot" style="background:var(--s${i + 1})"></i>${NAMES[i]} ${fmt(v)}° <span style="color:var(--muted)">/ ${fmt(a.target)}°</span></div>`; });
+      else { const v = cur.phFelt[k], raw = cur.phRaw[k]; rows += `<div class="r">ощущается ${v == null ? '—' : fmt(v, 3)}</div><div class="r" style="color:var(--muted)">в трубе ${raw == null ? '—' : fmt(raw, 3)}</div>`; }
+      tip.innerHTML = rows; tip.hidden = false;
+      const tw = tip.offsetWidth; let left = px + 12; if (left + tw > r.width) left = px - tw - 12;
+      tip.style.left = Math.max(0, left) + 'px'; tip.style.top = '8px';
+      const c = css(); drawT(c); drawP(c);
+    };
+    const leave = () => { hoverT = null; tip.hidden = true; const c = css(); drawT(c); drawP(c); };
+    cv.addEventListener('pointermove', move);
+    cv.addEventListener('pointerleave', leave);
+    cv.addEventListener('click', (ev) => { const r = cv.getBoundingClientRect(); const t = (ev.clientX - r.left - M.l) / (r.width - M.l - M.r) * cur.T_END; st.t = Math.max(0, Math.min(cur.T_END, t)); st.playing = false; syncPlay(); render(); });
+  }
+
+  // ---------- controls ----------
+  function syncPlay() { $('play').textContent = st.playing ? '❚❚ Пауза' : (st.t >= cur.T_END - 1e-6 ? '▶ Запустить' : '▶ Дальше'); }
+  function syncStrategy() {
+    for (const s of ['naive', 'patient', 'relay']) $('st-' + s).setAttribute('aria-pressed', String(s === st.strategy));
+    $('stratNote').textContent = NOTES[st.strategy];
+    $('relayChecks').style.opacity = st.strategy === 'relay' ? '1' : '0.45';
+  }
+  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => { st.strategy = b.dataset.s; cur = runs[st.strategy]; syncStrategy(); buildTable(); render(); }));
+  const sliders = [
+    ['sN', 'N', 'vN', v => String(v)], ['sL', 'L', 'vL', v => fmt(v, v % 1 ? 1 : 0) + ' с'],
+    ['sP', 'P', 'vP', v => (v === 0 ? 'мгновенно' : fmt(v, v % 1 ? 2 : 0).replace(/,?0+$/, '') + ' с')], ['sTol', 'tol', 'vTol', v => '±' + v + ' %'],
+  ];
+  let pend = null;
+  sliders.forEach(([id, key, out, f]) => {
+    $(id).addEventListener('input', () => {
+      const v = parseFloat($(id).value); st[key] = v; $(out).textContent = f(v);
+      if (key === 'L') $('leadL').textContent = fmt(v, v % 1 ? 1 : 0);
+      clearTimeout(pend); pend = setTimeout(recompute, 60);
+    });
+  });
+  $('adaptive').addEventListener('change', e => { st.adaptive = e.target.checked; recompute(); });
+  $('pair').addEventListener('change', e => {
+    st.pair = e.target.checked; $('pairRow').setAttribute('aria-disabled', String(!st.pair));
+    if (st.pair && st.seed === 7 && st.N >= 3) { st.seed = 2; $('vSeed').textContent = '#2'; }
+    if (st.pair && st.N < 2) { st.N = 2; $('sN').value = 2; $('vN').textContent = '2'; }
+    recompute();
+  });
+  $('sD').addEventListener('input', () => { st.dGap = parseFloat($('sD').value); $('vD').textContent = fmt(st.dGap, st.dGap % 1 ? 1 : 0) + ' с'; clearTimeout(pend); pend = setTimeout(recompute, 60); });
+  $('reseed').addEventListener('click', () => { st.seed += 1; $('vSeed').textContent = '#' + st.seed; recompute(); });
+  $('early').addEventListener('change', e => { st.early = e.target.checked; recompute(); });
+  $('scrub').addEventListener('input', e => { st.t = e.target.value / 1000 * cur.T_END; st.playing = false; syncPlay(); render(); });
+  const SPEEDS = [1, 5, 15];
+  $('speed').addEventListener('click', () => { st.speed = SPEEDS[(SPEEDS.indexOf(st.speed) + 1) % SPEEDS.length]; $('speed').textContent = '×' + st.speed; });
+  $('play').addEventListener('click', () => {
+    if (st.playing) { st.playing = false; syncPlay(); return; }
+    if (st.t >= cur.T_END - 1e-6) st.t = 0;
+    st.playing = true; syncPlay(); let last = performance.now();
+    const tick = (now) => {
+      if (!st.playing) return;
+      st.t = Math.min(cur.T_END, st.t + (now - last) / 1000 * st.speed); last = now;
+      if (st.t >= cur.T_END) st.playing = false;
+      render(); syncPlay();
+      if (st.playing) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  hover($('cT'), 'tip'); hover($('cP'), 'tip2');
+  window.addEventListener('resize', () => render());
+  try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => render()); } catch (e) {}
+  new MutationObserver(() => render()).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  syncStrategy();
+  recompute();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => render());
+})();
+</script>
