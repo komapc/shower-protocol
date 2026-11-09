@@ -214,6 +214,7 @@
       }
       a.num = counted;
       release(r.end);
+      rebase();
       schedule(r.end + p.L + 1, () => check(a));
     }
 
@@ -238,22 +239,6 @@
       const responses = Math.max(0, counted - 1);
       const multi = r.initiators.length > 1;
       roll = null; lastQuiet = r.end;
-      if (multi && r.responders.length > 0) {
-        // старожилы видели две ступеньки, а синхро одно: глушилка, все новенькие пробуют заново
-        const jammer = r.responders.slice().sort((u, v) => u.num - v.num)[0];
-        const jt = r.end;
-        const jr = { kind: 'jam', sync: jt, initiators: [jammer], pulses: [], end: jt + jamLen + dPure + silence, ev: r.ev };
-        rolls.push(jr); roll = jr;
-        pulse(jammer, jt, jr, 'стоп', jamLen);
-        r.jammed = true;
-        for (const x of r.initiators) { x.cw *= 2; x.ev.jammed = (x.ev.jammed || 0) + 1; }
-        schedule(jr.end, () => {
-          roll = null; lastQuiet = jr.end;
-          for (const x of r.initiators) schedule(jr.end + R() * x.cw, () => attempt(x));
-          release(jr.end);
-        });
-        return;
-      }
       // обычный исход (или незамеченная коллизия в пустой душевой)
       for (const x of r.responders) { x.belief = (x.belief || 0) + 1; if (x.tableN !== x.belief) setTable(x, x.belief); }
       for (const x of r.initiators) {
@@ -261,8 +246,67 @@
         setTable(x, x.belief);
         schedule(r.end + p.L + 1, () => check(x));
       }
-      if (multi) r.silentCollision = true;
+      if (multi && r.responders.length === 0) r.silentCollision = true;
+      if (multi) r.merged = true; // для статистики: синхро слились (сами агенты этого не знают)
       release(r.end);
+      if (r.responders.length > 0) { ledger.syncs += 1; ledger.last = r; audit(); } else rebase();
+    }
+
+    // ---------- учёт ступенек: глушилка по ощущаемому напору ----------
+    // Старожил помнит базовый напор (когда всё сходилось) и сколько нас тогда было. Сколько людей
+    // пришло с тех пор, он оценивает по тому, на сколько «ступенек при n» упал напор (знание вида
+    // «одна ступенька при n людях ощущается так» — такое же, как личная табличка). Синхро он считает
+    // на слух. Если ступенек больше, чем синхро, и за окно ожидания недостающее синхро не пришло —
+    // кто-то слился: глушилка, последняя перекличка не в счёт.
+    const phOf = (n) => 1 / (1 + p.Rh * p.hotMark * Math.max(0, n));
+    const feltNow = () => phFelt[Math.max(0, kNow - 1)];
+    const ledger = { baseP: null, baseN: 0, syncs: 0, last: null, pending: false, jams: 0 };
+    // после глушилки новенькие удваивают паузу — старожил ждёт недостающее синхро тоже вдвое дольше
+    const debtWait = () => silence + cw0 * Math.pow(2, ledger.jams) + 1;
+    function observer() { const xs = present().filter(x => x.num > 0); return xs.sort((u, v) => u.num - v.num)[0] || null; }
+    function rebase() {
+      const o = observer(); ledger.pending = false; ledger.syncs = 0; ledger.last = null; ledger.jams = 0;
+      if (!o || feltNow() == null) { ledger.baseP = null; return; }
+      ledger.baseP = feltNow(); ledger.baseN = o.belief || 1;
+    }
+    function arrivalsFelt() {
+      const drop = ledger.baseP - feltNow();
+      let best = 0, bestErr = Infinity;
+      for (let k = 0; k <= 6; k++) { const err = Math.abs(phOf(ledger.baseN) - phOf(ledger.baseN + k) - drop); if (err < bestErr) { bestErr = err; best = k; } }
+      return best;
+    }
+    function audit() {
+      if (ledger.baseP == null) { rebase(); return; }
+      if (arrivalsFelt() <= ledger.syncs) { rebase(); return; }
+      if (ledger.pending) return;
+      ledger.pending = true;
+      const decide = () => {
+        if (roll) { schedule(roll.end + 0.2, decide); return; }
+        ledger.pending = false;
+        if (ledger.baseP == null) return;
+        if (arrivalsFelt() <= ledger.syncs) { rebase(); return; }
+        const jammer = observer(), last = ledger.last;
+        if (!jammer || !last) { rebase(); return; }
+        jam(jammer, last);
+      };
+      schedule(cur + debtWait(), decide);
+    }
+    function jam(jammer, last) {
+      const jt = cur;
+      const jr = { kind: 'jam', sync: jt, initiators: [jammer], pulses: [], end: jt + jamLen + dPure + silence, ev: last.ev };
+      rolls.push(jr); roll = jr;
+      pulse(jammer, jt, jr, 'стоп', jamLen);
+      last.jammed = true;
+      // последняя перекличка не в счёт: её новенькие сбрасывают номер, старожилы откатывают N
+      for (const x of last.initiators) { x.num = 0; x.belief = null; x.cw *= 2; x.ev.jammed = (x.ev.jammed || 0) + 1; }
+      for (const x of last.responders) if (x.present) { x.belief = Math.max(1, (x.belief || 1) - 1); if (x.tableN !== x.belief) setTable(x, x.belief); }
+      ledger.syncs = Math.max(0, ledger.syncs - 1); ledger.last = null; ledger.jams += 1;
+      for (const x of present()) x.frozen = true;
+      schedule(jr.end, () => {
+        roll = null; lastQuiet = jr.end;
+        for (const x of last.initiators) if (x.present) schedule(jr.end + R() * x.cw, () => attempt(x));
+        release(jr.end);
+      });
     }
 
     function release(t) {
@@ -293,6 +337,7 @@
           for (const x of numbered) { if (x.num > leaverNum) x.num -= 1; x.belief = Math.max(1, (x.belief || 1) - 1); if (x.tableN !== x.belief) setTable(x, x.belief); }
           roll = null; lastQuiet = r.end;
           release(r.end);
+          rebase();
         });
       };
       if (p.earlyJump) schedule(now + perceive, () => { const n = present().length; for (const x of present()) if (x.num > 0) setTable(x, n); });
