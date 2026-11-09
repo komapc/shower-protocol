@@ -184,8 +184,27 @@
       schedule(r.end, () => (r.kind === 'recount' ? finishRecount(r) : finishEntryRoll(r)));
     }
 
+    // Ступенька напора за время переклички: если базовый напор до синхро и после конца разный,
+    // кто-то пришёл посреди переклички и мог «съесть» мырг — результату верить нельзя.
+    function stepH(n) { const Gh = Math.max(1, n) * p.hotMark; return 1 / (1 + p.Rh * (Gh - p.hotMark)) - 1 / (1 + p.Rh * Gh); }
+    function contaminated(r, nKnown) {
+      const k0 = Math.max(0, Math.round(r.sync / dt) - 1), k1 = Math.min(steps - 1, Math.round(r.end / dt) - 1); // текущий шаг ещё не посчитан
+      if (phFelt[k0] == null || phFelt[k1] == null) return false;
+      return Math.abs(phFelt[k0] - phFelt[k1]) > 0.5 * stepH(nKnown + 1);
+    }
+    function voidRoll(r) { // все почувствовали лишнюю ступеньку: перекличка не в счёт
+      r.voided = true; roll = null; lastQuiet = r.end;
+      // приоритет: испорченную перекличку её инициатор повторяет сразу, остальные услышат синхро и подождут
+      for (const x of r.initiators) {
+        x.ev.voided = (x.ev.voided || 0) + 1;
+        schedule(r.end + 0.3, () => { if (!x.present) return; if (roll) { attempt(x); return; } startEntryRoll(x, cur, x.num > 0 ? 'recount' : 'entry'); });
+      }
+      release(r.end);
+    }
+
     // Пересчёт: синхро без ступеньки напора. Все считают мырги и ставят N = число мыргов; инициатор берёт номер N.
     function finishRecount(r) {
+      if (contaminated(r, r.responders.length)) { voidRoll(r); return; }
       const counted = countPulses(r.sync, r.end);
       r.detected = counted; r.expected = r.pulses.length;
       roll = null; lastQuiet = r.end;
@@ -199,20 +218,21 @@
     }
 
     // Проверка прыжка: если промах после прыжка по табличке больше 2 °C — N, видимо, неверное. Пересчёт.
-    function check(a) {
+    function check(a, force) {
       if (!a.present || a.num === 0) return;
       // кто-то ещё ждёт своей переклички (лишняя ступенька напора была) — сначала дождаться его
       if (present().some(x => x.num === 0)) { schedule(cur + p.L + 1, () => check(a)); return; }
       if (cur + 1e-6 < a.nextCheckOk) { schedule(a.nextCheckOk + 0.05, () => check(a)); return; }
       const e = a.target - a.felt[Math.max(0, kNow - 1)];
-      if (Math.abs(e) <= 2) return;
-      if (roll || cur < lastQuiet + silence) { schedule(Math.max(roll ? roll.end : 0, lastQuiet) + silence + R() * cw0, () => check(a)); return; }
+      if (!force && Math.abs(e) <= 2) return;
+      if (roll || cur < lastQuiet + silence) { schedule(Math.max(roll ? roll.end : 0, lastQuiet) + silence + R() * cw0, () => check(a, force)); return; }
       a.ev.recount = (a.ev.recount || 0) + 1;
       if (a.ev.recount > 3) return;
       startEntryRoll(a, cur, 'recount');
     }
 
     function finishEntryRoll(r) {
+      if (r.initiators.length === 1 && contaminated(r, r.responders.length)) { voidRoll(r); return; }
       const counted = countPulses(r.sync, r.end);
       r.detected = counted; r.expected = r.pulses.length;
       const responses = Math.max(0, counted - 1);
