@@ -14,5 +14,5 @@ for (const N of [2,3,4]) for (const P of [0.5,3]) for (const d of [0,1,2,4,8]) {
     disc+=r.discomfort;
   }
   settle.sort((a,b)=>a-b);
-  console.log(`N=${N} P=${P} Δ=${d}: коллизий ${col}/${R}, глушилок ${jam}, отложил ${def}, тихих коллизий ${silent}, пересчётов ${rec}, неверное N в конце ${wrong}, схождение медиана ${settle.length?settle[settle.length>>1].toFixed(1):'-'} с, не сошлось ${nc}, дискомфорт ${(disc/R).toFixed(0)}`);
+  console.log(`N=${N} P=${P} Δ=${d}: коллизий ${col}/${R}, стоп-сигналов ${jam}, отложил ${def}, тихих коллизий ${silent}, пересчётов ${rec}, неверное N в конце ${wrong}, схождение медиана ${settle.length?settle[settle.length>>1].toFixed(1):'-'} с, не сошлось ${nc}, дискомфорт ${(disc/R).toFixed(0)}`);
 }
