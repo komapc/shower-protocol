@@ -6,6 +6,7 @@
   "scripts": {
     "strategies": "node tools/strategies.js",
     "pair-sweep": "node tools/pair-sweep.js",
-    "serve": "python3 -m http.server 8000"
+    "serve": "python3 -m http.server 8000",
+    "sweep": "node tools/sweep.js"
   }
 }

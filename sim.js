@@ -9,6 +9,8 @@
     L: 5,            // задержка температуры, с
     P: 0.5,          // за сколько доходит изменение напора, с (0 = мгновенно)
     adaptive: true,  // темп T подстраивается под P
+    cwK: 2,          // окно случайной паузы перед синхро не меньше cwK·P (слышно чужое синхро только через ~P)
+    tK: 0.2,         // адаптивный темп: T = max(0.5, tK·P); 0.8 давало слишком длинные мырги
     earlyJump: true, // старожилы прыгают сразу, не дожидаясь конца переклички
     strategy: 'relay', // naive | patient | relay
     pairGap: null,   // если число: последний приходит через столько секунд после предпоследнего
@@ -116,14 +118,14 @@
     const present = () => agents.filter(a => a.present);
 
     // ---------- relay protocol ----------
-    const Tunit = p.adaptive ? Math.max(0.5, 0.8 * p.P) : 0.5;
+    const Tunit = p.adaptive ? Math.max(0.5, p.tK * p.P) : 0.5;
     const pause = p.adaptive ? Tunit : 0.5;
     const perceive = dPure + 5 * tau + (p.P > 0 ? 0.3 : 0); // напор устоялся
     const hear = dPure + 0.3;               // через сколько после начала чужого мырга его слышно
     const hop = Tunit + dPure + pause + 0.3; // эстафета: дождаться, пока услышишь, и выдержать паузу
     const silence = 3 * Tunit;
     const jamLen = 5 * Tunit;
-    const cw0 = Math.max(3, 6 * Tunit);     // окно случайной паузы перед синхро-мыргом
+    const cw0 = Math.max(3, 6 * Tunit, p.cwK * p.P); // окно паузы должно покрывать время, за которое слышно чужое синхро     // окно случайной паузы перед синхро-мыргом
     let roll = null, lastQuiet = -1;        // активная перекличка; когда канал снова тих
 
     function setTable(x, n) { x.gc = tableEntry(x, p, n); x.tableN = n; }
@@ -190,7 +192,8 @@
     function contaminated(r, nKnown) {
       const k0 = Math.max(0, Math.round(r.sync / dt) - 1), k1 = Math.min(steps - 1, Math.round(r.end / dt) - 1); // текущий шаг ещё не посчитан
       if (phFelt[k0] == null || phFelt[k1] == null) return false;
-      return Math.abs(phFelt[k0] - phFelt[k1]) > 0.5 * stepH(nKnown + 1);
+      // под душем nKnown старожилов + инициатор; пришедший добавит ступеньку при nKnown + 2
+      return Math.abs(phFelt[k0] - phFelt[k1]) > 0.5 * stepH(nKnown + 2);
     }
     function voidRoll(r) { // все почувствовали лишнюю ступеньку: перекличка не в счёт
       r.voided = true; roll = null; lastQuiet = r.end;
