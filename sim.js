@@ -9,6 +9,9 @@
     L: 5,            // задержка температуры, с
     P: 0.5,          // за сколько доходит изменение напора, с (0 = мгновенно)
     adaptive: true,  // темп T подстраивается под P
+    jamGrow: 2,      // во сколько раз растёт окно паузы новенького после стоп-сигнала
+    tail: true,
+    tailAlways: false, // держать окно под хвост в каждой перекличке (иначе — только при лишней ступеньке)      // услышавший чужое синхро новенький пристраивается в хвост той же переклички
     cwK: 2,          // окно случайной паузы перед синхро не меньше cwK·P (слышно чужое синхро только через ~P)
     tK: 0.2,         // адаптивный темп: T = max(0.5, tK·P); 0.8 давало слишком длинные мырги
     earlyJump: true, // старожилы прыгают сразу, не дожидаясь конца переклички
@@ -139,7 +142,8 @@
     function arriveRelay(a, now) {
       a.gh = p.hotMark; a.gc = tableEntry(a, p, 2); // пока N не знает — догадка «нас двое»
       a.num = 0; a.belief = null; a.cw = cw0;
-      a.frozen = true;
+      a.frozen = true; a.ownP = null;
+      schedule(now + perceive, () => { a.ownP = feltNow(); });
       // старожилы видят ступеньку напора и сразу знают новое N
       if (p.earlyJump) schedule(now + perceive, () => {
         const nPhys = present().length;
@@ -152,7 +156,11 @@
       if (!a.present) return;
       const t = cur;
       if (roll) {
-        if (roll.kind !== 'entry' || t >= roll.sync + hear) { // услышал чужое синхро — ждёт конца переклички
+        if (roll.kind === 'entry' && p.tail && t >= roll.sync + hear && t < roll.tail - 0.1) {
+          // услышал чужое синхро — пристраивается в хвост: мыргнёт после последнего старожила, выдержав тишину
+          roll.joiners.push(a); pulse(a, roll.tail, roll, 'хвост');
+          a.ev.joined = (a.ev.joined || 0) + 1;
+        } else if (roll.kind !== 'entry' || t >= roll.sync + hear) { // услышал чужое синхро — ждёт конца переклички
           a.ev.deferred = (a.ev.deferred || 0) + 1;
           schedule(roll.end + silence + R() * a.cw, () => attempt(a));
         } else { // не успел услышать — коллизия: его синхро сливается с чужим
@@ -180,7 +188,12 @@
       const slots = slotsOf(responders);
       let tt = t;
       slots.forEach(g => { tt += hop; g.forEach(x => pulse(x, tt, r, '#' + x.num)); });
-      r.end = tt + Tunit + dPure + silence;
+      r.lastSlot = tt; r.joiners = [];
+      // хвост: после последнего старожила пауза длиннее обычного шага — там мыргают пристроившиеся новенькие
+      // окно под хвост держат, только если по напору видно, что пришедших больше, чем синхро
+      const withTail = p.tail && r.kind === 'entry' && (p.tailAlways || extraArrival(a));
+      r.tail = withTail ? tt + hop + silence : Infinity;
+      r.end = (withTail ? r.tail : tt) + Tunit + dPure + silence;
       r.responders = responders;
       for (const x of present()) x.frozen = true;
       schedule(r.end, () => (r.kind === 'recount' ? finishRecount(r) : finishEntryRoll(r)));
@@ -195,9 +208,15 @@
       // под душем nKnown старожилов + инициатор; пришедший добавит ступеньку при nKnown + 2
       return Math.abs(phFelt[k0] - phFelt[k1]) > 0.5 * stepH(nKnown + 2);
     }
+    function extraArrival(a) {
+      if (ledger.baseP != null && feltNow() != null) return arrivalsFelt() > ledger.syncs + 1;
+      // пустая душевая: сравнить с напором, который новенький почувствовал после своего прихода
+      return a.ownP != null && feltNow() != null && a.ownP - feltNow() > 0.5 * stepH(2);
+    }
     function voidRoll(r) { // все почувствовали лишнюю ступеньку: перекличка не в счёт
       r.voided = true; roll = null; lastQuiet = r.end;
       // приоритет: испорченную перекличку её инициатор повторяет сразу, остальные услышат синхро и подождут
+      for (const x of r.joiners || []) schedule(r.end + 0.3 + hear + 0.2, () => attempt(x)); // услышат новое синхро и пристроятся снова
       for (const x of r.initiators) {
         x.ev.voided = (x.ev.voided || 0) + 1;
         schedule(r.end + 0.3, () => { if (!x.present) return; if (roll) { attempt(x); return; } startEntryRoll(x, cur, x.num > 0 ? 'recount' : 'entry'); });
@@ -237,22 +256,30 @@
 
     function finishEntryRoll(r) {
       if (r.initiators.length === 1 && contaminated(r, r.responders.length)) { voidRoll(r); return; }
-      const counted = countPulses(r.sync, r.end);
-      r.detected = counted; r.expected = r.pulses.length;
+      const split = isFinite(r.tail) ? r.tail - 0.1 : r.end;
+      const counted = countPulses(r.sync, split);
+      const J = isFinite(r.tail) ? countPulses(split, r.end) : 0; // сколько мыргов услышано в хвосте
+      r.joinHeard = J;
+      r.detected = counted + J; r.expected = r.pulses.length;
       const responses = Math.max(0, counted - 1);
       const multi = r.initiators.length > 1;
       roll = null; lastQuiet = r.end;
       // обычный исход (или незамеченная коллизия в пустой душевой)
-      for (const x of r.responders) { x.belief = (x.belief || 0) + 1; if (x.tableN !== x.belief) setTable(x, x.belief); }
+      for (const x of r.responders) { x.belief = (x.belief || 0) + 1 + J; if (x.tableN !== x.belief) setTable(x, x.belief); }
       for (const x of r.initiators) {
-        x.belief = responses + 1; x.num = responses + 1;
+        x.belief = responses + 1 + J; x.num = responses + 1;
+        setTable(x, x.belief);
+        schedule(r.end + p.L + 1, () => check(x));
+      }
+      for (const x of r.joiners) {
+        x.belief = responses + 1 + J; x.num = responses + 2;
         setTable(x, x.belief);
         schedule(r.end + p.L + 1, () => check(x));
       }
       if (multi && r.responders.length === 0) r.silentCollision = true;
       if (multi) r.merged = true; // для статистики: синхро слились (сами агенты этого не знают)
       release(r.end);
-      if (r.responders.length > 0) { ledger.syncs += 1; ledger.last = r; audit(); } else rebase();
+      if (r.responders.length > 0) { ledger.syncs += 1 + J; ledger.last = r; audit(); } else rebase();
     }
 
     // ---------- учёт ступенек: стоп-сигнал по ощущаемому напору ----------
@@ -301,13 +328,14 @@
       pulse(jammer, jt, jr, 'стоп', jamLen);
       last.jammed = true;
       // последняя перекличка не в счёт: её новенькие сбрасывают номер, старожилы откатывают N
-      for (const x of last.initiators) { x.num = 0; x.belief = null; x.cw *= 2; x.ev.jammed = (x.ev.jammed || 0) + 1; }
-      for (const x of last.responders) if (x.present) { x.belief = Math.max(1, (x.belief || 1) - 1); if (x.tableN !== x.belief) setTable(x, x.belief); }
-      ledger.syncs = Math.max(0, ledger.syncs - 1); ledger.last = null; ledger.jams += 1;
+      const back = 1 + (last.joinHeard || 0), redo = last.initiators.concat(last.joiners || []);
+      for (const x of redo) { x.num = 0; x.belief = null; x.cw *= p.jamGrow; x.ev.jammed = (x.ev.jammed || 0) + 1; }
+      for (const x of last.responders) if (x.present) { x.belief = Math.max(1, (x.belief || 1) - back); if (x.tableN !== x.belief) setTable(x, x.belief); }
+      ledger.syncs = Math.max(0, ledger.syncs - back); ledger.last = null; ledger.jams += 1;
       for (const x of present()) x.frozen = true;
       schedule(jr.end, () => {
         roll = null; lastQuiet = jr.end;
-        for (const x of last.initiators) if (x.present) schedule(jr.end + R() * x.cw, () => attempt(x));
+        for (const x of redo) if (x.present) schedule(jr.end + R() * x.cw, () => attempt(x));
         release(jr.end);
       });
     }
