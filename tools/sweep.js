@@ -22,7 +22,7 @@ const sec = x => (isNaN(x) ? '   —' : x.toFixed(1).padStart(5));
 function row(label, cfg) {
   const m = run(cfg);
   console.log(label.padEnd(34), 'медиана', sec(m.med), ' p90', sec(m.p90), ' не сошлось', pct(m.nc),
-    cfg.strategy === 'relay' || !cfg.strategy ? ` неверное N ${pct(m.wrongGap)} (при фактическом выходе ${pct(m.wrong)}) слияний ${pct(m.merged)} стоп ${m.jams.toFixed(2)} пересч ${m.recs.toFixed(2)}` : '',
+    cfg.strategy === 'sheet' ? ` неверное N ${pct(m.wrongGap)}` : cfg.strategy === 'relay' || !cfg.strategy ? ` неверное N ${pct(m.wrongGap)} (при фактическом выходе ${pct(m.wrong)}) слияний ${pct(m.merged)} стоп ${m.jams.toFixed(2)} пересч ${m.recs.toFixed(2)}` : '',
     ' дискомфорт/чел', m.disc.toFixed(0).padStart(4));
 }
 const sets = {
@@ -91,6 +91,16 @@ const sets = {
     for (const P of [0.5, 3]) { console.log(`\n— P = ${P} с —`);
       for (const N of [2, 4, 6]) for (const st of ['simple', 'relay']) row(`N=${N} ${st}`, { N, P, strategy: st });
       for (const st of ['simple', 'relay']) row(`пара Δ=0 N=6 ${st}`, { N: 6, P, pairGap: 0, strategy: st }); }
+  },
+  sheet() { // «договор»: перекличка по номерам кабинок против простого и эстафеты
+    const ST = ['simple', 'sheet', 'relay'];
+    for (const P of [0.5, 1, 2, 3]) { console.log(`\n— P = ${P} с —`);
+      for (const N of [2, 4, 6]) for (const st of ST) row(`N=${N} ${st}`, { N, P, strategy: st });
+      for (const st of ST) row(`пара Δ=0 N=6 ${st}`, { N: 6, P, pairGap: 0, strategy: st }); }
+    for (const L of [3, 8, 12]) { console.log(`\n— L = ${L} с, N = 4, P = 0.5 —`);
+      for (const st of ST) row(st, { N: 4, P: 0.5, L, strategy: st }); }
+    console.log('\n— события раз в 90 с, N = 6, P = 3 —');
+    for (const st of ST) row(st, { N: 6, P: 3, gap: 90, strategy: st });
   },
 };
 const t0 = Date.now();

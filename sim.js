@@ -17,7 +17,9 @@
     relayPause: false, // true = прежний шаг эстафеты с лишней паузой
     mergeAccept: true, // слившиеся синхро распознаются по напору: N верное сразу, номера разводит жребий
     earlyJump: true, // старожилы прыгают сразу, не дожидаясь конца переклички
-    strategy: 'relay', // naive | patient | simple | relay
+    strategy: 'relay', // naive | patient | simple | sheet | relay
+    stalls: 6,        // sheet: кабинок (номер кабинки = номер секунды в перекличке)
+    sheetSlot: null,  // sheet: шаг переклички, с (null — max(2, T + P + 0.5))
     simpleK: 0.0015,  // simple: шаг холодной = simpleK·ошибка (°C) за секунду…
     simpleRate: 0.03, // …но не больше 3 % хода крана за секунду
     simpleJit: 0.3,   // интервал между шагами 1 с ± 30 % — против синхронных качелей
@@ -150,6 +152,44 @@
       const d = len || Tunit;
       schedule(t0, () => { a.pulseUntil = t0 + d; });
       r.pulses.push({ t: t0, dur: d, who: a.id, label });
+    }
+
+    // ---------- шпаргалка (sheet): перекличка по номерам кабинок ----------
+    // Пришёл или почувствовал скачок напора — мыргни. Услышав мырг, каждый мыргает на своей секунде:
+    // номер кабинки × шаг. Все считают мырги — это N. Холодный на метку для N, дальше тихая подкрутка.
+    // Скачок напора посреди переклички — после неё перекличка заново.
+    const slotS = p.sheetSlot || Math.max(2, Tunit + p.P + 0.5);
+    let call = null;
+    if (p.strategy === 'sheet') {
+      const order = agents.map((_, i) => i + 1);
+      for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+      agents.forEach((a, i) => { a.stall = 1 + ((order[i] - 1) % Math.max(p.stalls, N)); });
+    }
+    function sheetCall(t) {
+      if (call) { if (call.started) call.dirty = true; return; }   // перекличка ещё не началась — новичок в неё и так попадёт
+      call = { pending: true };
+      schedule(t, () => startCall(t));
+    }
+    function startCall(t) {
+      const who = present();
+      if (!who.length) { call = null; return; }
+      const r = { kind: 'call', sync: t, initiators: who, pulses: [], ev: who[who.length - 1].ev, started: true };
+      call = r; rolls.push(r);
+      who.forEach(x => pulse(x, t, r, 'стук'));             // мыргнули все, кто почувствовал (сливается в один)
+      who.forEach(x => pulse(x, t + x.stall * slotS, r, 'каб.' + x.stall));
+      r.end = t + Math.max(p.stalls, N) * slotS + Tunit + dPure + 5 * tau + 0.3;
+      r.members = who;
+      schedule(r.end, () => {
+        const counted = countPulses(t + 0.6 * slotS, r.end);
+        r.detected = counted; r.expected = who.length;
+        call = null;
+        for (const x of present()) {
+          x.belief = counted;
+          if (counted > 0) { x.gc = tableEntry(x, p, counted); x.tableN = counted; }
+          x.nextAct = Math.max(x.nextAct, r.end + p.L + 1);
+        }
+        if (r.dirty) sheetCall(r.end + 0.5);
+      });
     }
 
     function arriveRelay(a, now) {
@@ -558,7 +598,7 @@
         if ((ng > 1 && e > 0) || (ng < 0.05 && e < 0)) a.gc = clamp(a.gc - 0.01 * e, 0, 1.2);
         a.gh = clamp(ng, 0.05, 1);
         a.nextAct = now + 1;
-      } else if (p.strategy === 'simple') {
+      } else if (p.strategy === 'simple' || p.strategy === 'sheet') {
         // Простой: горячая на метке, холодная понемногу в сторону коррекции. Никаких сигналов и N.
         if (Math.abs(e) > p.simpleDz) a.gc = clamp(a.gc - clamp(p.simpleK * e, -p.simpleRate, p.simpleRate) * a.tick, 0, 1.2);
         a.tick = 1 + (R() * 2 - 1) * p.simpleJit;
@@ -590,6 +630,10 @@
           if (p.strategy === 'naive') { a.gh = 0.5; a.gc = 0.25; a.nextAct = now + p.L + a.phase; }
           else if (p.strategy === 'simple') { a.gh = p.hotMark; a.gc = 0.4; a.tick = 1; a.nextAct = now + 1 + R(); }
           else if (p.strategy === 'patient') { a.gh = p.hotMark; a.gc = 0.4; a.nextAct = now + p.L + 1; }
+          else if (p.strategy === 'sheet') {
+            a.gh = p.hotMark; a.gc = tableEntry(a, p, 2); a.num = a.stall; a.belief = null; a.tick = 1; a.nextAct = now + p.L + 1;
+            sheetCall(now + 0.1);   // пришедший стучит сразу
+          }
           else arriveRelay(a, now);
         } else if (p.strategy === 'relay') {
           // уходящий тоже ждёт тишины: закрывает кран только когда никто не перекликается
@@ -600,6 +644,7 @@
           leave();
         } else {
           a.present = false;
+          if (p.strategy === 'sheet') sheetCall(now + perceive + 0.5);
         }
       }
       let guard = 0;
@@ -652,16 +697,16 @@
     // итог по знанию N у каждого в конце
     const exitEv = events.find(e => e.kind === 'exit');
     const kChk = exitEv ? Math.max(0, Math.round(exitEv.t / dt) - 1) : steps - 1;
-    const wrongBelief = p.strategy === 'relay' ? agents.filter(a => a.felt[kChk] != null && a.beliefH[kChk] !== nTrueH[kChk]).length : 0;
+    const wrongBelief = (p.strategy === 'relay' || p.strategy === 'sheet') ? agents.filter(a => a.felt[kChk] != null && a.beliefH[kChk] !== nTrueH[kChk]).length : 0;
     // то же, но строго к плановому времени выхода: уходящий ждёт тишины, и без этого затянувшаяся
     // перекличка отодвигает момент проверки и прячет ошибку
     const kSch = tExit != null ? Math.min(steps - 1, Math.round(tExit / dt) - 1) : steps - 1;
-    const wrongByGap = p.strategy === 'relay' ? agents.filter(a => a.felt[kSch] != null && a.beliefH[kSch] !== nTrueH[kSch]).length : 0;
+    const wrongByGap = (p.strategy === 'relay' || p.strategy === 'sheet') ? agents.filter(a => a.felt[kSch] != null && a.beliefH[kSch] !== nTrueH[kSch]).length : 0;
 
     return {
-      params: p, dt, steps, T_END, phRaw, phFelt, nTrue: nTrueH, events, rolls, dupLog, discomfort, wrongBelief, wrongByGap,
+      params: p, dt, steps, T_END, slotS, phRaw, phFelt, nTrue: nTrueH, events, rolls, dupLog, discomfort, wrongBelief, wrongByGap,
       Tunit, hop, cw0,
-      agents: agents.map(a => ({ id: a.id, target: a.target, mix: a.mix, felt: a.felt, gh: a.ghH, gc: a.gcH, num: a.numH, belief: a.beliefH })),
+      agents: agents.map(a => ({ id: a.id, target: a.target, mix: a.mix, felt: a.felt, gh: a.ghH, gc: a.gcH, num: a.numH, belief: a.beliefH, stall: a.stall })),
     };
   }
 
