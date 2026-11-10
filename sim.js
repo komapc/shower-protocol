@@ -21,6 +21,7 @@
     stalls: 6,        // sheet: кабинок (номер кабинки = номер секунды в перекличке)
     sheetSlot: null,  // sheet: шаг переклички, с (null — max(2, T + P + 0.5 + 2·sheetAbs))
     sheetProm: 0.7,   // sheet: порог мырга, в долях ожидаемой высоты мырга (с учётом сглаживания)
+    sheetNewEarly: false, // sheet: новичок отсчитывает от открытия своего крана, а не от ощущённого скачка
     sheetJit: 0,      // sheet: ошибка отсчёта в уме, доля от отсчитанного (0 — смотрят на часы)
     sheetAbs: 0.5,    // sheet: ошибка реакции и чтения часов, ± с (в том числе когда кто почувствовал скачок)
     simpleK: 0.0015,  // simple: шаг холодной = simpleK·ошибка (°C) за секунду…
@@ -180,7 +181,7 @@
       const r = { kind: 'call', sync: t, initiators: who, pulses: [], ev: who[who.length - 1].ev, started: true, dirty };
       call = r; rolls.push(r);
       if (knock) who.forEach(x => pulse(x, t, r, 'стук'));  // стучат все разом — сливается в один
-      who.forEach(x => pulse(x, t + x.stall * slotS * (1 + p.sheetJit * (2 * R() - 1)) + p.sheetAbs * (2 * R() - 1), r, 'каб.' + x.stall));
+      who.forEach(x => pulse(x, t + x.stall * slotS - (p.sheetNewEarly && x.sheetT0 != null && t - x.sheetT0 < perceive + 0.5 ? t - x.sheetT0 : 0) + x.stall * slotS * (p.sheetJit * (2 * R() - 1)) + p.sheetAbs * (2 * R() - 1), r, 'каб.' + x.stall));
       r.end = t + Math.max(p.stalls, N) * slotS * (1 + p.sheetJit) + p.sheetAbs + Tunit + dPure + 5 * tau + 0.3;
       r.members = who;
       schedule(r.end, () => {
@@ -641,7 +642,7 @@
           else if (p.strategy === 'simple') { a.gh = p.hotMark; a.gc = 0.4; a.tick = 1; a.nextAct = now + 1 + R(); }
           else if (p.strategy === 'patient') { a.gh = p.hotMark; a.gc = 0.4; a.nextAct = now + p.L + 1; }
           else if (p.strategy === 'sheet') {
-            a.gh = p.hotMark; a.gc = tableEntry(a, p, 2); a.num = a.stall; a.belief = null; a.tick = 1; a.nextAct = now + p.L + 1;
+            a.gh = p.hotMark; a.gc = tableEntry(a, p, 2); a.num = a.stall; a.sheetT0 = now; a.belief = null; a.tick = 1; a.nextAct = now + p.L + 1;
             sheetCall(now + perceive);   // открытие крана — само по себе сигнал, стук не нужен
           }
           else arriveRelay(a, now);
