@@ -3,25 +3,26 @@ const S = require('../sim.js');
 const which = process.argv[2] || 'all', SEEDS = +(process.argv[3] || 100);
 
 function run(cfg) {
-  const settles = []; let ev = 0, nc = 0, wrong = 0, disc = 0, merged = 0, jams = 0, recs = 0;
+  const settles = []; let ev = 0, nc = 0, wrong = 0, wrongGap = 0, disc = 0, merged = 0, jams = 0, recs = 0;
   for (let seed = 1; seed <= SEEDS; seed++) {
     const r = S.simulate(Object.assign({ seed }, cfg));
     for (const e of r.events) { if (e.mergedWithNext) continue; ev++; if (e.converged) settles.push(e.settle); else nc++; }
     if (r.wrongBelief > 0) wrong++;
+    if (r.wrongByGap > 0) wrongGap++;
     disc += r.discomfort / Math.max(1, cfg.N || 3);
     if (r.rolls.some(x => x.initiators && x.initiators.length > 1)) merged++;
     jams += r.rolls.filter(x => x.kind === 'jam').length; recs += r.rolls.filter(x => x.kind === 'recount').length;
   }
   settles.sort((a, b) => a - b);
   const q = f => settles.length ? settles[Math.min(settles.length - 1, Math.floor(f * settles.length))] : NaN;
-  return { med: q(0.5), p90: q(0.9), nc: nc / ev, wrong: wrong / SEEDS, disc: disc / SEEDS, merged: merged / SEEDS, jams: jams / SEEDS, recs: recs / SEEDS };
+  return { med: q(0.5), p90: q(0.9), nc: nc / ev, wrong: wrong / SEEDS, wrongGap: wrongGap / SEEDS, disc: disc / SEEDS, merged: merged / SEEDS, jams: jams / SEEDS, recs: recs / SEEDS };
 }
 const pct = x => (100 * x).toFixed(0).padStart(3) + '%';
 const sec = x => (isNaN(x) ? '   —' : x.toFixed(1).padStart(5));
 function row(label, cfg) {
   const m = run(cfg);
   console.log(label.padEnd(34), 'медиана', sec(m.med), ' p90', sec(m.p90), ' не сошлось', pct(m.nc),
-    cfg.strategy === 'relay' || !cfg.strategy ? ` неверное N ${pct(m.wrong)} слияний ${pct(m.merged)} стоп ${m.jams.toFixed(2)} пересч ${m.recs.toFixed(2)}` : '',
+    cfg.strategy === 'relay' || !cfg.strategy ? ` неверное N ${pct(m.wrongGap)} (при фактическом выходе ${pct(m.wrong)}) слияний ${pct(m.merged)} стоп ${m.jams.toFixed(2)} пересч ${m.recs.toFixed(2)}` : '',
     ' дискомфорт/чел', m.disc.toFixed(0).padStart(4));
 }
 const sets = {
@@ -53,6 +54,27 @@ const sets = {
   pairs() { // двое почти одновременно
     for (const N of [2, 3, 4, 5]) { console.log(`\n— N = ${N}, P = 0.5, последние двое через Δ —`);
       for (const d of [0, 0.5, 1, 2, 3, 4, 6, 10]) row(`Δ=${d} с`, { N, P: 0.5, pairGap: d, strategy: 'relay' }); }
+  },
+  merge() { // двойное синхро: принять слияние (жребий) против стоп-сигнала и повтора
+    for (const P of [0.5, 2, 3, 4]) { console.log(`\n— P = ${P} с, двое одновременно —`);
+      for (const N of [2, 4, 6]) for (const ma of [false, true]) row(`N=${N} ${ma ? 'принять слияние' : 'стоп-сигнал   '}`, { N, P, pairGap: 0, mergeAccept: ma }); }
+  },
+  detect() { // точность распознавания двойного синхро: ложные «двое» и пропущенные слияния
+    for (const noise of [0, 0.1]) for (const P of [0.5, 2, 3, 4]) for (const N of [3, 6]) {
+      let fp = 0, miss = 0, merged = 0, single = 0;
+      for (const pairGap of [null, 0, 0.5, 1, 2, 3]) for (let seed = 1; seed <= Math.ceil(SEEDS / 2); seed++) {
+        const r = S.simulate({ seed, N, P, pairGap, noise });
+        for (const x of r.rolls) if (x.kind === 'entry' && x.syncsHeard != null && x.responders.length > 0) {
+          if (x.initiators.length > 1) { merged++; if (x.syncsHeard < 2) miss++; } else { single++; if (x.syncsHeard > 1) fp++; }
+        }
+      }
+      console.log(`шум ${noise} P=${P} N=${N}: одиночных синхро ${single}, ложно «двое» ${fp}; слияний ${merged}, пропущено ${miss}`);
+    }
+  },
+  noise() { // шум ощущаемого напора, в долях одного мырга
+    for (const P of [0.5, 3]) { console.log(`\n— P = ${P} с, N = 4 —`);
+      for (const noise of [0, 0.05, 0.1, 0.15, 0.2]) for (const pairGap of [null, 0]) for (const ma of [false, true])
+        row(`шум ${noise} ${pairGap == null ? 'по одному' : 'пара     '} ${ma ? 'принять' : 'стоп   '}`, { N: 4, P, noise, pairGap, mergeAccept: ma }); }
   },
 };
 const t0 = Date.now();
