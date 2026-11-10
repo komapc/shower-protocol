@@ -19,7 +19,10 @@
     earlyJump: true, // старожилы прыгают сразу, не дожидаясь конца переклички
     strategy: 'relay', // naive | patient | simple | sheet | relay
     stalls: 6,        // sheet: кабинок (номер кабинки = номер секунды в перекличке)
-    sheetSlot: null,  // sheet: шаг переклички, с (null — max(2, T + P + 0.5))
+    sheetSlot: null,  // sheet: шаг переклички, с (null — max(2, T + P + 0.5 + 2·sheetAbs))
+    sheetProm: 0.7,   // sheet: порог мырга, в долях ожидаемой высоты мырга (с учётом сглаживания)
+    sheetJit: 0,      // sheet: ошибка отсчёта в уме, доля от отсчитанного (0 — смотрят на часы)
+    sheetAbs: 0.5,    // sheet: ошибка реакции и чтения часов, ± с (в том числе когда кто почувствовал скачок)
     simpleK: 0.0015,  // simple: шаг холодной = simpleK·ошибка (°C) за секунду…
     simpleRate: 0.03, // …но не больше 3 % хода крана за секунду
     simpleJit: 0.3,   // интервал между шагами 1 с ± 30 % — против синхронных качелей
@@ -158,7 +161,7 @@
     // Почувствовал скачок напора (кто-то открыл или закрыл кран, в том числе ты сам) — через номер кабинки × шаг
     // мыргни. Все считают мырги — это N. Холодный на деление для N, дальше тихая подкрутка.
     // Скачок напора посреди переклички — после неё все мыргают разом (стук) и перекличка заново.
-    const slotS = p.sheetSlot || Math.max(2, Tunit + p.P + 0.5);
+    const slotS = p.sheetSlot || Math.max(2, Tunit + p.P + 0.5 + 2 * p.sheetAbs); // мырг + задержка + запас на чужую и свою ошибку
     let call = null;
     if (p.strategy === 'sheet') {
       const order = agents.map((_, i) => i + 1);
@@ -177,19 +180,25 @@
       const r = { kind: 'call', sync: t, initiators: who, pulses: [], ev: who[who.length - 1].ev, started: true, dirty };
       call = r; rolls.push(r);
       if (knock) who.forEach(x => pulse(x, t, r, 'стук'));  // стучат все разом — сливается в один
-      who.forEach(x => pulse(x, t + x.stall * slotS, r, 'каб.' + x.stall));
-      r.end = t + Math.max(p.stalls, N) * slotS + Tunit + dPure + 5 * tau + 0.3;
+      who.forEach(x => pulse(x, t + x.stall * slotS * (1 + p.sheetJit * (2 * R() - 1)) + p.sheetAbs * (2 * R() - 1), r, 'каб.' + x.stall));
+      r.end = t + Math.max(p.stalls, N) * slotS * (1 + p.sheetJit) + p.sheetAbs + Tunit + dPure + 5 * tau + 0.3;
       r.members = who;
       schedule(r.end, () => {
-        const counted = countPulses(t + 0.6 * slotS, r.end);
+        // считаем занятые номера: в каком из окошек k·S ± S/2 (с учётом задержки напора) был мырг
+        const busy = new Set();
+        for (const tp of countPulses(t + 0.5 * slotS, r.end, true, p.sheetProm * (1 - Math.exp(-Tunit / Math.max(tau, 1e-6))))) {
+          const k = Math.round((tp - t - dPure - Tunit) / slotS);
+          if (k >= 1 && k <= Math.max(p.stalls, N)) busy.add(k);
+        }
+        const counted = busy.size;
         r.detected = counted; r.expected = who.length;
         call = null;
+        if (r.dirty) { sheetCall(r.end + 0.5, true); return; }   // сбитая перекличка не считается
         for (const x of present()) {
           x.belief = counted;
           if (counted > 0) { x.gc = tableEntry(x, p, counted); x.tableN = counted; }
           x.nextAct = Math.max(x.nextAct, r.end + p.L + 1);
         }
-        if (r.dirty) sheetCall(r.end + 0.5, true);
       });
     }
 
@@ -562,14 +571,14 @@
 
     // Сколько мыргов различимо в ощущаемом напоре: пики, которые и поднимаются, и опускаются
     // хотя бы на половину амплитуды одного крана. Ступенька (вход/выход) пиком не считается.
-    function countPulses(t0, t1) {
+    function countPulses(t0, t1, times, prom = 0.5) {
       const i0 = Math.max(1, Math.round(t0 / dt) - 2), i1 = Math.min(steps - 2, Math.round(t1 / dt));
       const n = Math.max(1, present().length);
       const Gh = n * p.hotMark;
       const h = 1 / (1 + p.Rh * (Gh - p.hotMark)) - 1 / (1 + p.Rh * Gh);
       const win = Math.max(3, Math.round((hop + Tunit) / dt));
       const v = (i) => phFelt[i];
-      let count = 0, armedBelow = -Infinity;
+      let count = 0, armedBelow = -Infinity; const at = [];
       for (let i = i0; i <= i1; i++) {
         if (v(i) == null || v(i - 1) == null || v(i + 1) == null) continue;
         if (v(i) < armedBelow) armedBelow = -Infinity; // сигнал снова опустился — можно ловить следующий пик
@@ -578,9 +587,9 @@
         let lmin = v(i), rmin = v(i);
         for (let j = Math.max(0, i - win); j < i; j++) if (v(j) != null) lmin = Math.min(lmin, v(j));
         for (let j = i + 1; j <= Math.min(i1, i + win); j++) if (v(j) != null) rmin = Math.min(rmin, v(j));
-        if (v(i) - lmin > 0.5 * h && v(i) - rmin > 0.5 * h) { count++; armedBelow = v(i) - 0.5 * h; }
+        if (v(i) - lmin > prom * h && v(i) - rmin > prom * h) { count++; at.push(i * dt); armedBelow = v(i) - 0.5 * h; }
       }
-      return count;
+      return times ? at : count;
     }
 
     // ---------- control laws ----------
