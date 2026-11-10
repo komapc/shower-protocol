@@ -163,7 +163,7 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
 <div class="wrap">
   <header>
     <h1>Душевой протокол</h1>
-    <p class="lead">Несколько душевых на одной горячей трубе. Кто-то приходит, кто-то уходит, температура доходит до лейки через <span class="mono" id="leadL">5</span>&nbsp;с. Симуляция сравнивает, как быстро все снова оказываются в своей зоне комфорта (±0,5&nbsp;°C) при трёх способах крутить краны.</p>
+    <p class="lead">Несколько душевых на одной горячей трубе. Кто-то приходит, кто-то уходит, температура доходит до лейки через <span class="mono" id="leadL">5</span>&nbsp;с. Симуляция сравнивает, как быстро все снова оказываются в своей зоне комфорта (±0,5&nbsp;°C) при четырёх способах крутить краны.</p>
   </header>
 
   <section class="panel controls" aria-label="Параметры">
@@ -171,6 +171,7 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
       <div class="seg" role="group" aria-label="Стратегия">
         <button id="st-naive" data-s="naive" aria-pressed="false">Наивно</button>
         <button id="st-patient" data-s="patient" aria-pressed="false">Терпеливо</button>
+        <button id="st-simple" data-s="simple" aria-pressed="false">Просто</button>
         <button id="st-relay" data-s="relay" aria-pressed="true">Эстафета</button>
       </div>
       <p class="strat-note" id="stratNote"></p>
@@ -226,7 +227,7 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
   <section class="panel" aria-label="Сравнение">
     <h2>Сколько секунд до схождения после каждого события</h2>
     <div class="tbl-box"><table id="tbl"></table></div>
-    <p class="caption">Те же параметры, все три стратегии. «Не сошлось» — до следующего события кто-то так и остался вне зоны. Дискомфорт — сумма по людям выхода за ±0,5&nbsp;°C, в градусо-секундах; меньше лучше.</p>
+    <p class="caption">Те же параметры, все четыре стратегии. «Не сошлось» — до следующего события кто-то так и остался вне зоны. Дискомфорт — сумма по людям выхода за ±0,5&nbsp;°C, в градусо-секундах; меньше лучше.</p>
   </section>
 
   <section class="panel" aria-label="Двое одновременно" id="pairPanel">
@@ -250,8 +251,9 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
     <h2>Что показала симуляция</h2>
     <div class="findings">
       <div class="finding"><b>Наивные не сходятся</b><p>Крутить горячую раз в секунду при задержке 5&nbsp;с — это раскачка. С двумя и больше людьми соседи раскачивают друг друга, и к следующему событию никто не в зоне.</p></div>
+      <div class="finding"><b>Можно и без сигналов</b><p>Горячая на метке, холодная понемногу (0,0015·ошибка, не больше 3&nbsp;% хода в секунду) со случайным интервалом: ~32&nbsp;с на событие, при N до 4 сходится всегда, при шести — в 73&nbsp;% событий. Окно коэффициента узкое и зависит от задержки воды: при L&nbsp;=&nbsp;8&nbsp;с уже 76&nbsp;% несошедшихся. Эстафета в 2–3 раза быстрее при быстром напоре; при P&nbsp;=&nbsp;3&nbsp;с выигрыш почти пропадает.</p></div>
       <div class="finding"><b>Терпение работает, но медленно</b><p>Горячая на метке и мелкие шаги холодной с паузой: всё сходится, но около 35&nbsp;с на событие.</p></div>
-      <div class="finding"><b>Эстафета: 8–20&nbsp;с</b><p>Упреждающий прыжок по табличке плюс одна поправка по Ньютону. Время ограничено в основном задержкой воды и ошибкой таблички.</p></div>
+      <div class="finding"><b>Эстафета: 10–20&nbsp;с при быстром напоре</b><p>Упреждающий прыжок по табличке плюс одна поправка по Ньютону. Время ограничено в основном задержкой воды и ошибкой таблички; при медленном напоре (P&nbsp;=&nbsp;3&nbsp;с) — 16–28&nbsp;с.</p></div>
       <div class="finding"><b>Старожилам перекличка не нужна</b><p>Они и так знают новое N: было N, напор упал, значит N+1. Если прыгать сразу, а не в конце переклички, дискомфорт падает, и тем сильнее, чем медленнее напор. Перекличка нужна только новенькому.</p></div>
       <div class="finding"><b>Мырг — это тоже скачок температуры</b><p>При медленном напоре мырги длинные, и через L секунд они приходят к лейкам горячими и холодными толчками. Поэтому мырг должен быть коротким: T&nbsp;=&nbsp;max(0,5&nbsp;с, 0,2·P). С прежним правилом T&nbsp;=&nbsp;0,8·P при задержке напора 3&nbsp;с эстафета проигрывала терпеливым, с коротким мыргом — выигрывает.</p></div>
       <div class="finding"><b>Медленный напор: работает до ~3&nbsp;с</b><p>С коротким мыргом эстафета сходится во всех прогонах до задержки напора 3&nbsp;с при любом N до 6 и обгоняет терпеливых. С 4–5&nbsp;с при четырёх и больше людях перекличка не всегда укладывается в 45&nbsp;с между событиями.</p></div>
@@ -279,6 +281,7 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
   const NOTES = {
     naive: 'Каждый раз в секунду крутит горячую на величину ошибки и не ждёт, пока вода дойдёт. Если горячая упёрлась в край, крутит холодную.',
     patient: 'Горячая на общей метке. Холодную крутят маленьким шагом, потом ждут L+1 секунд и смотрят снова.',
+    simple: 'Горячая на метке. Раз в 1 с (±30 %, случайно) каждый сдвигает холодную на 0,0015·ошибку, не больше 3 % хода крана. Ни сигналов, ни N.',
     relay: 'Горячая на метке. При событии перекличка мыргами, затем все прыгают холодной на своё деление из таблички для нового N и делают одну-две точные поправки.',
   };
   const st = { strategy: 'relay', N: 3, L: 5, P: 0.5, tol: 6, adaptive: true, early: true, pair: false, dGap: 1, seed: 7, t: null, playing: false, speed: 5 };
@@ -290,7 +293,7 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
 
   function recompute() {
     const base = { N: st.N, L: st.L, P: st.P, adaptive: st.adaptive, earlyJump: st.early, tableErr: st.tol / 100, pairGap: st.pair ? st.dGap : null, seed: st.seed };
-    for (const s of ['naive', 'patient', 'relay']) runs[s] = S.simulate(Object.assign({ strategy: s }, base));
+    for (const s of ['naive', 'patient', 'simple', 'relay']) runs[s] = S.simulate(Object.assign({ strategy: s }, base));
     cur = runs[st.strategy];
     if (st.t == null || st.t > cur.T_END || !st.playing) st.t = st.playing ? Math.min(st.t || 0, cur.T_END) : cur.T_END;
     buildStalls(); buildLegend(); buildTable(); render(); schedulePairStats(base);
@@ -357,7 +360,7 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
   // ---------- table ----------
   function evName(ev) { return (ev.kind === 'entry' ? 'Пришла/пришёл ' : 'Ушла/ушёл ').replace(/.*/, ev.kind === 'entry' ? '+ ' : '− ') + NAMES[ev.who]; }
   function buildTable() {
-    const ss = ['naive', 'patient', 'relay'], hd = { naive: 'Наивно', patient: 'Терпеливо', relay: 'Эстафета' };
+    const ss = ['naive', 'patient', 'simple', 'relay'], hd = { naive: 'Наивно', patient: 'Терпеливо', simple: 'Просто', relay: 'Эстафета' };
     let h = '<thead><tr><th>Событие</th>' + ss.map(s => `<th>${hd[s]}${s === st.strategy ? ' ·' : ''}</th>`).join('') + '</tr></thead><tbody>';
     const n = runs.relay.events.length;
     for (let i = 0; i < n; i++) {
@@ -584,7 +587,7 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
   // ---------- controls ----------
   function syncPlay() { $('play').textContent = st.playing ? '❚❚ Пауза' : (st.t >= cur.T_END - 1e-6 ? '▶ Запустить' : '▶ Дальше'); }
   function syncStrategy() {
-    for (const s of ['naive', 'patient', 'relay']) $('st-' + s).setAttribute('aria-pressed', String(s === st.strategy));
+    for (const s of ['naive', 'patient', 'simple', 'relay']) $('st-' + s).setAttribute('aria-pressed', String(s === st.strategy));
     $('stratNote').textContent = NOTES[st.strategy];
     $('relayChecks').style.opacity = st.strategy === 'relay' ? '1' : '0.45';
   }

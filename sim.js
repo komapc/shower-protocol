@@ -10,14 +10,18 @@
     P: 0.5,          // за сколько доходит изменение напора, с (0 = мгновенно)
     adaptive: true,  // темп T подстраивается под P
     jamGrow: 2,      // во сколько раз растёт окно паузы новенького после стоп-сигнала
-    tail: true,
-    tailAlways: false, // держать окно под хвост в каждой перекличке (иначе — только при лишней ступеньке)      // услышавший чужое синхро новенький пристраивается в хвост той же переклички
+    tail: true,      // услышавший чужое синхро новенький пристраивается в хвост той же переклички
+    tailAlways: false, // держать окно под хвост в каждой перекличке (иначе — только при лишней ступеньке)
     cwK: 2,          // окно случайной паузы перед синхро не меньше cwK·P (слышно чужое синхро только через ~P)
     tK: 0.2,         // адаптивный темп: T = max(0.5, tK·P); 0.8 давало слишком длинные мырги
     relayPause: false, // true = прежний шаг эстафеты с лишней паузой
     mergeAccept: true, // слившиеся синхро распознаются по напору: N верное сразу, номера разводит жребий
     earlyJump: true, // старожилы прыгают сразу, не дожидаясь конца переклички
-    strategy: 'relay', // naive | patient | relay
+    strategy: 'relay', // naive | patient | simple | relay
+    simpleK: 0.0015,  // simple: шаг холодной = simpleK·ошибка (°C) за секунду…
+    simpleRate: 0.03, // …но не больше 3 % хода крана за секунду
+    simpleJit: 0.3,   // интервал между шагами 1 с ± 30 % — против синхронных качелей
+    simpleDz: 0.3,    // мёртвая зона, °C
     noise: 0,        // шум ощущаемого напора, в долях амплитуды одного мырга (до сглаживания)
     pairGap: null,   // если число: последний приходит через столько секунд после предпоследнего
     dt: 0.1,
@@ -135,7 +139,7 @@
     const hop1 = Tunit + hear + pause;
     const silence = 3 * Tunit;
     const jamLen = 5 * Tunit;
-    const cw0 = Math.max(3, 6 * Tunit, p.cwK * p.P); // окно паузы должно покрывать время, за которое слышно чужое синхро     // окно случайной паузы перед синхро-мыргом
+    const cw0 = Math.max(3, 6 * Tunit, p.cwK * p.P); // окно случайной паузы перед синхро: должно покрывать время, за которое слышно чужое синхро
     let roll = null, lastQuiet = -1;        // активная перекличка; когда канал снова тих
 
     function setTable(x, n) { x.gc = tableEntry(x, p, n); x.tableN = n; }
@@ -487,6 +491,11 @@
         if ((ng > 1 && e > 0) || (ng < 0.05 && e < 0)) a.gc = clamp(a.gc - 0.01 * e, 0, 1.2);
         a.gh = clamp(ng, 0.05, 1);
         a.nextAct = now + 1;
+      } else if (p.strategy === 'simple') {
+        // Простой: горячая на метке, холодная понемногу в сторону коррекции. Никаких сигналов и N.
+        if (Math.abs(e) > p.simpleDz) a.gc = clamp(a.gc - clamp(p.simpleK * e, -p.simpleRate, p.simpleRate) * a.tick, 0, 1.2);
+        a.tick = 1 + (R() * 2 - 1) * p.simpleJit;
+        a.nextAct = now + a.tick;
       } else if (p.strategy === 'patient') {
         if (Math.abs(e) > p.band * 0.6) a.gc = clamp(a.gc - clamp(0.012 * e, -0.08, 0.08), 0, 1.2);
         a.nextAct = now + p.L + 1;
@@ -512,6 +521,7 @@
         if (sc.kind === 'entry') {
           a.present = true; a.arriveStep = k;
           if (p.strategy === 'naive') { a.gh = 0.5; a.gc = 0.25; a.nextAct = now + p.L + a.phase; }
+          else if (p.strategy === 'simple') { a.gh = p.hotMark; a.gc = 0.4; a.tick = 1; a.nextAct = now + 1 + R(); }
           else if (p.strategy === 'patient') { a.gh = p.hotMark; a.gc = 0.4; a.nextAct = now + p.L + 1; }
           else arriveRelay(a, now);
         } else if (p.strategy === 'relay') {
