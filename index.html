@@ -138,6 +138,7 @@ td.fail { color: var(--muted); }
 .badge.bad { border-color: var(--critical); color: var(--fg); }
 tr.cur-col td:nth-child(1) { font-weight: 600; }
 
+.sheet { margin: 4px 0 8px; padding-left: 22px; display: grid; gap: 6px; font-size: 15px; }
 .findings { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 .finding { border-left: 3px solid var(--accent); padding: 2px 0 2px 12px; }
 .finding b { display: block; font-size: 14px; }
@@ -163,7 +164,7 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
 <div class="wrap">
   <header>
     <h1>Душевой протокол</h1>
-    <p class="lead">Несколько душевых на одной горячей трубе. Кто-то приходит, кто-то уходит, температура доходит до лейки через <span class="mono" id="leadL">5</span>&nbsp;с. Симуляция сравнивает, как быстро все снова оказываются в своей зоне комфорта (±0,5&nbsp;°C) при четырёх способах крутить краны.</p>
+    <p class="lead">Несколько душевых на одной горячей трубе. Кто-то приходит, кто-то уходит, температура доходит до лейки через <span class="mono" id="leadL">5</span>&nbsp;с. Симуляция сравнивает, как быстро все снова оказываются в своей зоне комфорта (±0,5&nbsp;°C) при пяти способах крутить краны.</p>
   </header>
 
   <section class="panel controls" aria-label="Параметры">
@@ -172,6 +173,7 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
         <button id="st-naive" data-s="naive" aria-pressed="false">Наивно</button>
         <button id="st-patient" data-s="patient" aria-pressed="false">Терпеливо</button>
         <button id="st-simple" data-s="simple" aria-pressed="false">Просто</button>
+        <button id="st-sheet" data-s="sheet" aria-pressed="false">Договор</button>
         <button id="st-relay" data-s="relay" aria-pressed="true">Эстафета</button>
       </div>
       <p class="strat-note" id="stratNote"></p>
@@ -227,7 +229,7 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
   <section class="panel" aria-label="Сравнение">
     <h2>Сколько секунд до схождения после каждого события</h2>
     <div class="tbl-box"><table id="tbl"></table></div>
-    <p class="caption">Те же параметры, все четыре стратегии. «Не сошлось» — до следующего события кто-то так и остался вне зоны. Дискомфорт — сумма по людям выхода за ±0,5&nbsp;°C, в градусо-секундах; меньше лучше.</p>
+    <p class="caption">Те же параметры, все пять стратегий. «Не сошлось» — до следующего события кто-то так и остался вне зоны. Дискомфорт — сумма по людям выхода за ±0,5&nbsp;°C, в градусо-секундах; меньше лучше.</p>
   </section>
 
   <section class="panel" aria-label="Двое одновременно" id="pairPanel">
@@ -247,11 +249,24 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
     </div>
   </section>
 
+  <section class="panel" aria-label="Шпаргалка">
+    <h2>Шпаргалка «договора» — повесить в душевой</h2>
+    <ol class="sheet">
+      <li>Горячий кран — всегда на метке. Температуру крутишь только холодным.</li>
+      <li>Напор скакнул (кто-то открыл или закрыл кран) — глянь на часы. Через <b>номер своей кабинки × <span id="sheetSlot">2,5</span> с</b> мыргни: на полсекунды закрой горячий. Вошёл сам — отсчёт начинай через <b><span id="sheetD">1</span> с</b> после того, как открыл кран.</li>
+      <li>Сосчитай мырги — это сколько вас. Поставь холодный на деление для этого числа (табличка у крана).</li>
+      <li>Дальше подкручивай холодный понемногу, раз в секунду-две.</li>
+      <li>Напор скакнул посреди переклички — она не считается. В конце все разом мыргните и начните заново, отсчитывая от этого мырга.</li>
+    </ol>
+    <p class="caption">Нужны номера на кабинках и часы с секундной стрелкой: в уме 15 секунд отсчитывают с ошибкой ~10&nbsp;%, и тогда кабинки 5 и 6 сливаются в 13&nbsp;% перекличек; по часам — 0. Шаг — постоянная душевой: мырг + задержка напора + 1,5&nbsp;с запаса на реакцию. Табличка у крана — та же, что в эстафете.</p>
+  </section>
+
   <section class="panel" aria-label="Выводы">
     <h2>Что показала симуляция</h2>
     <div class="findings">
       <div class="finding"><b>Наивные не сходятся</b><p>Крутить горячую раз в секунду при задержке 5&nbsp;с — это раскачка. С двумя и больше людьми соседи раскачивают друг друга, и к следующему событию никто не в зоне.</p></div>
       <div class="finding"><b>Можно и без сигналов</b><p>Горячая на метке, холодная понемногу (0,0015·ошибка, не больше 3&nbsp;% хода в секунду) со случайным интервалом: ~32&nbsp;с на событие, при N до 4 сходится всегда, при шести — в 73&nbsp;% событий. Окно коэффициента узкое и зависит от задержки воды: при L&nbsp;=&nbsp;8&nbsp;с уже 76&nbsp;% несошедшихся. Эстафета в 2–3 раза быстрее при быстром напоре; при P&nbsp;=&nbsp;3&nbsp;с выигрыш почти пропадает.</p></div>
+      <div class="finding"><b>Договор: шпаргалка на стене</b><p>Номер кабинки = секунда ответа, поэтому мырги не сталкиваются и подсчёт точный: неверное N — 0&nbsp;%: двое и трое разом, скачки посреди переклички, неточная реакция ±0,8&nbsp;с (при сильном шуме — до 1,2&nbsp;%). Сигнал — сам скачок напора от крана, отсчёт по часам на стене. При быстром напоре 23–29&nbsp;с на событие (простой — 32, эстафета — 10–19), не боится шестерых; при L&nbsp;=&nbsp;12&nbsp;с тоже не успевает (46&nbsp;%). Цена — перекличка по всем шести кабинкам: при P&nbsp;≥&nbsp;2&nbsp;с она медленнее простого (36–52&nbsp;с) и успевает, только если люди приходят не чаще раза в 90&nbsp;с.</p></div>
       <div class="finding"><b>Терпение работает, но медленно</b><p>Горячая на метке и мелкие шаги холодной с паузой: всё сходится, но около 35&nbsp;с на событие.</p></div>
       <div class="finding"><b>Эстафета: 10–20&nbsp;с при быстром напоре</b><p>Упреждающий прыжок по табличке плюс одна поправка по Ньютону. Время ограничено в основном задержкой воды и ошибкой таблички; при медленном напоре (P&nbsp;=&nbsp;3&nbsp;с) — 16–28&nbsp;с.</p></div>
       <div class="finding"><b>Старожилам перекличка не нужна</b><p>Они и так знают новое N: было N, напор упал, значит N+1. Если прыгать сразу, а не в конце переклички, дискомфорт падает, и тем сильнее, чем медленнее напор. Перекличка нужна только новенькому.</p></div>
@@ -283,6 +298,7 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
     naive: 'Каждый раз в секунду крутит горячую на величину ошибки и не ждёт, пока вода дойдёт. Если горячая упёрлась в край, крутит холодную.',
     patient: 'Горячая на общей метке. Холодную крутят маленьким шагом, потом ждут L+1 секунд и смотрят снова.',
     simple: 'Горячая на метке. Раз в 1 с (±30 %, случайно) каждый сдвигает холодную на 0,0015·ошибку, не больше 3 % хода крана. Ни сигналов, ни N.',
+    sheet: 'Шпаргалка на стене: почувствовал скачок напора (в том числе от своего крана) — мыргни на своей секунде: номер кабинки × шаг. Число мыргов = N, холодная на деление из таблички, дальше — как «Просто».',
     relay: 'Горячая на метке. При событии перекличка мыргами, затем все прыгают холодной на своё деление из таблички для нового N и делают одну-две точные поправки.',
   };
   const st = { strategy: 'relay', N: 3, L: 5, P: 0.5, tol: 6, adaptive: true, early: true, pair: false, dGap: 1, seed: 7, t: null, playing: false, speed: 5 };
@@ -294,8 +310,10 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
 
   function recompute() {
     const base = { N: st.N, L: st.L, P: st.P, adaptive: st.adaptive, earlyJump: st.early, tableErr: st.tol / 100, pairGap: st.pair ? st.dGap : null, seed: st.seed };
-    for (const s of ['naive', 'patient', 'simple', 'relay']) runs[s] = S.simulate(Object.assign({ strategy: s }, base));
+    for (const s of ['naive', 'patient', 'simple', 'sheet', 'relay']) runs[s] = S.simulate(Object.assign({ strategy: s }, base));
     cur = runs[st.strategy];
+    $('sheetSlot').textContent = fmt(runs.sheet.slotS, 1);
+    $('sheetD').textContent = fmt(1.4 * st.P + 0.3, 1);
     if (st.t == null || st.t > cur.T_END || !st.playing) st.t = st.playing ? Math.min(st.t || 0, cur.T_END) : cur.T_END;
     buildStalls(); buildLegend(); buildTable(); render(); schedulePairStats(base);
   }
@@ -331,6 +349,10 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
         const num = a.num[k], b = a.belief[k], nt = cur.nTrue[k];
         if (!num) { bl.textContent = 'слушает, номера нет'; bl.className = 'belief'; }
         else { bl.textContent = `№${num} · думает N=${b}` + (b !== nt ? ` (на деле ${nt})` : ''); bl.className = 'belief' + (b !== nt ? ' bad' : ''); }
+      } else if (st.strategy === 'sheet' && present) {
+        const b = a.belief[k], nt = cur.nTrue[k];
+        bl.textContent = `каб. ${a.stall}` + (b ? ` · думает N=${b}` + (b !== nt ? ` (на деле ${nt})` : '') : ' · ждёт перекличку');
+        bl.className = 'belief' + (b && b !== nt ? ' bad' : '');
       } else { bl.textContent = st.strategy === 'relay' ? '' : ' '; bl.className = 'belief'; }
       if (!present) {
         const arrived = a.felt.slice(0, k).some(v => v != null);
@@ -361,7 +383,7 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
   // ---------- table ----------
   function evName(ev) { return (ev.kind === 'entry' ? 'Пришла/пришёл ' : 'Ушла/ушёл ').replace(/.*/, ev.kind === 'entry' ? '+ ' : '− ') + NAMES[ev.who]; }
   function buildTable() {
-    const ss = ['naive', 'patient', 'simple', 'relay'], hd = { naive: 'Наивно', patient: 'Терпеливо', simple: 'Просто', relay: 'Эстафета' };
+    const ss = ['naive', 'patient', 'simple', 'sheet', 'relay'], hd = { naive: 'Наивно', patient: 'Терпеливо', simple: 'Просто', sheet: 'Договор', relay: 'Эстафета' };
     let h = '<thead><tr><th>Событие</th>' + ss.map(s => `<th>${hd[s]}${s === st.strategy ? ' ·' : ''}</th>`).join('') + '</tr></thead><tbody>';
     const n = runs.relay.events.length;
     for (let i = 0; i < n; i++) {
@@ -553,6 +575,8 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
     drawPlayhead(ctx, h, x, c); drawCross(ctx, h, x, c);
     $('pCaption').textContent = st.strategy === 'relay'
       ? `Темп T = ${fmt(cur.Tunit, 1)} с, шаг эстафеты ${fmt(cur.hop, 1)} с (после синхро на T больше). Каждый всплеск — мырг, засечки внизу окрашены по тому, кто мыргнул. Над событием: сколько мыргов различимо в ощущаемом напоре из скольких отправленных.`
+      : st.strategy === 'sheet'
+      ? `Шаг переклички ${fmt(cur.slotS, 1)} с: кабинка №k мыргает через k шагов после скачка напора. Над перекличкой — сколько мыргов насчитали из скольких людей.`
       : 'В этой стратегии перекличек нет: видны только ступеньки от входов и выходов и подёргивания от того, как люди крутят горячую.';
   }
 
@@ -588,7 +612,7 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
   // ---------- controls ----------
   function syncPlay() { $('play').textContent = st.playing ? '❚❚ Пауза' : (st.t >= cur.T_END - 1e-6 ? '▶ Запустить' : '▶ Дальше'); }
   function syncStrategy() {
-    for (const s of ['naive', 'patient', 'simple', 'relay']) $('st-' + s).setAttribute('aria-pressed', String(s === st.strategy));
+    for (const s of ['naive', 'patient', 'simple', 'sheet', 'relay']) $('st-' + s).setAttribute('aria-pressed', String(s === st.strategy));
     $('stratNote').textContent = NOTES[st.strategy];
     $('relayChecks').style.opacity = st.strategy === 'relay' ? '1' : '0.45';
   }

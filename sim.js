@@ -17,7 +17,13 @@
     relayPause: false, // true = прежний шаг эстафеты с лишней паузой
     mergeAccept: true, // слившиеся синхро распознаются по напору: N верное сразу, номера разводит жребий
     earlyJump: true, // старожилы прыгают сразу, не дожидаясь конца переклички
-    strategy: 'relay', // naive | patient | simple | relay
+    strategy: 'relay', // naive | patient | simple | sheet | relay
+    stalls: 6,        // sheet: кабинок (номер кабинки = номер секунды в перекличке)
+    sheetSlot: null,  // sheet: шаг переклички, с (null — max(2, T + P + 0.5 + 2·sheetAbs))
+    sheetProm: 0.7,   // sheet: порог мырга, в долях ожидаемой высоты мырга (с учётом сглаживания)
+    sheetNewEarly: false, // sheet: новичок отсчитывает от открытия своего крана, а не от ощущённого скачка
+    sheetJit: 0,      // sheet: ошибка отсчёта в уме, доля от отсчитанного (0 — смотрят на часы)
+    sheetAbs: 0.5,    // sheet: ошибка реакции и чтения часов, ± с (в том числе когда кто почувствовал скачок)
     simpleK: 0.0015,  // simple: шаг холодной = simpleK·ошибка (°C) за секунду…
     simpleRate: 0.03, // …но не больше 3 % хода крана за секунду
     simpleJit: 0.3,   // интервал между шагами 1 с ± 30 % — против синхронных качелей
@@ -150,6 +156,51 @@
       const d = len || Tunit;
       schedule(t0, () => { a.pulseUntil = t0 + d; });
       r.pulses.push({ t: t0, dur: d, who: a.id, label });
+    }
+
+    // ---------- шпаргалка (sheet): перекличка по номерам кабинок ----------
+    // Почувствовал скачок напора (кто-то открыл или закрыл кран, в том числе ты сам) — через номер кабинки × шаг
+    // мыргни. Все считают мырги — это N. Холодный на деление для N, дальше тихая подкрутка.
+    // Скачок напора посреди переклички — после неё все мыргают разом (стук) и перекличка заново.
+    const slotS = p.sheetSlot || Math.max(2, Tunit + p.P + 0.5 + 2 * p.sheetAbs); // мырг + задержка + запас на чужую и свою ошибку
+    let call = null;
+    if (p.strategy === 'sheet') {
+      const order = agents.map((_, i) => i + 1);
+      for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+      agents.forEach((a, i) => { a.stall = 1 + ((order[i] - 1) % Math.max(p.stalls, N)); });
+    }
+    // t — момент, когда скачок напора почувствовали; knock — повтор после сбитой переклички (скачка нет, нужен стук)
+    function sheetCall(t, knock) {
+      if (call) { if (call.started || t > call.t) call.dirty = true; return; }
+      call = { pending: true, t };
+      schedule(t, () => startCall(t, knock));
+    }
+    function startCall(t, knock) {
+      const who = present(), dirty = !!call.dirty;
+      if (!who.length) { call = null; return; }
+      const r = { kind: 'call', sync: t, initiators: who, pulses: [], ev: who[who.length - 1].ev, started: true, dirty };
+      call = r; rolls.push(r);
+      if (knock) who.forEach(x => pulse(x, t, r, 'стук'));  // стучат все разом — сливается в один
+      who.forEach(x => pulse(x, t + x.stall * slotS - (p.sheetNewEarly && x.sheetT0 != null && t - x.sheetT0 < perceive + 0.5 ? t - x.sheetT0 : 0) + x.stall * slotS * (p.sheetJit * (2 * R() - 1)) + p.sheetAbs * (2 * R() - 1), r, 'каб.' + x.stall));
+      r.end = t + Math.max(p.stalls, N) * slotS * (1 + p.sheetJit) + p.sheetAbs + Tunit + dPure + 5 * tau + 0.3;
+      r.members = who;
+      schedule(r.end, () => {
+        // считаем занятые номера: в каком из окошек k·S ± S/2 (с учётом задержки напора) был мырг
+        const busy = new Set();
+        for (const tp of countPulses(t + 0.5 * slotS, r.end, true, p.sheetProm * (1 - Math.exp(-Tunit / Math.max(tau, 1e-6))))) {
+          const k = Math.round((tp - t - dPure - Tunit) / slotS);
+          if (k >= 1 && k <= Math.max(p.stalls, N)) busy.add(k);
+        }
+        const counted = busy.size;
+        r.detected = counted; r.expected = who.length;
+        call = null;
+        if (r.dirty) { sheetCall(r.end + 0.5, true); return; }   // сбитая перекличка не считается
+        for (const x of present()) {
+          x.belief = counted;
+          if (counted > 0) { x.gc = tableEntry(x, p, counted); x.tableN = counted; }
+          x.nextAct = Math.max(x.nextAct, r.end + p.L + 1);
+        }
+      });
     }
 
     function arriveRelay(a, now) {
@@ -521,14 +572,14 @@
 
     // Сколько мыргов различимо в ощущаемом напоре: пики, которые и поднимаются, и опускаются
     // хотя бы на половину амплитуды одного крана. Ступенька (вход/выход) пиком не считается.
-    function countPulses(t0, t1) {
+    function countPulses(t0, t1, times, prom = 0.5) {
       const i0 = Math.max(1, Math.round(t0 / dt) - 2), i1 = Math.min(steps - 2, Math.round(t1 / dt));
       const n = Math.max(1, present().length);
       const Gh = n * p.hotMark;
       const h = 1 / (1 + p.Rh * (Gh - p.hotMark)) - 1 / (1 + p.Rh * Gh);
       const win = Math.max(3, Math.round((hop + Tunit) / dt));
       const v = (i) => phFelt[i];
-      let count = 0, armedBelow = -Infinity;
+      let count = 0, armedBelow = -Infinity; const at = [];
       for (let i = i0; i <= i1; i++) {
         if (v(i) == null || v(i - 1) == null || v(i + 1) == null) continue;
         if (v(i) < armedBelow) armedBelow = -Infinity; // сигнал снова опустился — можно ловить следующий пик
@@ -537,9 +588,9 @@
         let lmin = v(i), rmin = v(i);
         for (let j = Math.max(0, i - win); j < i; j++) if (v(j) != null) lmin = Math.min(lmin, v(j));
         for (let j = i + 1; j <= Math.min(i1, i + win); j++) if (v(j) != null) rmin = Math.min(rmin, v(j));
-        if (v(i) - lmin > 0.5 * h && v(i) - rmin > 0.5 * h) { count++; armedBelow = v(i) - 0.5 * h; }
+        if (v(i) - lmin > prom * h && v(i) - rmin > prom * h) { count++; at.push(i * dt); armedBelow = v(i) - 0.5 * h; }
       }
-      return count;
+      return times ? at : count;
     }
 
     // ---------- control laws ----------
@@ -558,7 +609,7 @@
         if ((ng > 1 && e > 0) || (ng < 0.05 && e < 0)) a.gc = clamp(a.gc - 0.01 * e, 0, 1.2);
         a.gh = clamp(ng, 0.05, 1);
         a.nextAct = now + 1;
-      } else if (p.strategy === 'simple') {
+      } else if (p.strategy === 'simple' || p.strategy === 'sheet') {
         // Простой: горячая на метке, холодная понемногу в сторону коррекции. Никаких сигналов и N.
         if (Math.abs(e) > p.simpleDz) a.gc = clamp(a.gc - clamp(p.simpleK * e, -p.simpleRate, p.simpleRate) * a.tick, 0, 1.2);
         a.tick = 1 + (R() * 2 - 1) * p.simpleJit;
@@ -590,6 +641,10 @@
           if (p.strategy === 'naive') { a.gh = 0.5; a.gc = 0.25; a.nextAct = now + p.L + a.phase; }
           else if (p.strategy === 'simple') { a.gh = p.hotMark; a.gc = 0.4; a.tick = 1; a.nextAct = now + 1 + R(); }
           else if (p.strategy === 'patient') { a.gh = p.hotMark; a.gc = 0.4; a.nextAct = now + p.L + 1; }
+          else if (p.strategy === 'sheet') {
+            a.gh = p.hotMark; a.gc = tableEntry(a, p, 2); a.num = a.stall; a.sheetT0 = now; a.belief = null; a.tick = 1; a.nextAct = now + p.L + 1;
+            sheetCall(now + perceive);   // открытие крана — само по себе сигнал, стук не нужен
+          }
           else arriveRelay(a, now);
         } else if (p.strategy === 'relay') {
           // уходящий тоже ждёт тишины: закрывает кран только когда никто не перекликается
@@ -600,6 +655,7 @@
           leave();
         } else {
           a.present = false;
+          if (p.strategy === 'sheet') sheetCall(now + perceive);
         }
       }
       let guard = 0;
@@ -652,16 +708,16 @@
     // итог по знанию N у каждого в конце
     const exitEv = events.find(e => e.kind === 'exit');
     const kChk = exitEv ? Math.max(0, Math.round(exitEv.t / dt) - 1) : steps - 1;
-    const wrongBelief = p.strategy === 'relay' ? agents.filter(a => a.felt[kChk] != null && a.beliefH[kChk] !== nTrueH[kChk]).length : 0;
+    const wrongBelief = (p.strategy === 'relay' || p.strategy === 'sheet') ? agents.filter(a => a.felt[kChk] != null && a.beliefH[kChk] !== nTrueH[kChk]).length : 0;
     // то же, но строго к плановому времени выхода: уходящий ждёт тишины, и без этого затянувшаяся
     // перекличка отодвигает момент проверки и прячет ошибку
     const kSch = tExit != null ? Math.min(steps - 1, Math.round(tExit / dt) - 1) : steps - 1;
-    const wrongByGap = p.strategy === 'relay' ? agents.filter(a => a.felt[kSch] != null && a.beliefH[kSch] !== nTrueH[kSch]).length : 0;
+    const wrongByGap = (p.strategy === 'relay' || p.strategy === 'sheet') ? agents.filter(a => a.felt[kSch] != null && a.beliefH[kSch] !== nTrueH[kSch]).length : 0;
 
     return {
-      params: p, dt, steps, T_END, phRaw, phFelt, nTrue: nTrueH, events, rolls, dupLog, discomfort, wrongBelief, wrongByGap,
+      params: p, dt, steps, T_END, slotS, phRaw, phFelt, nTrue: nTrueH, events, rolls, dupLog, discomfort, wrongBelief, wrongByGap,
       Tunit, hop, cw0,
-      agents: agents.map(a => ({ id: a.id, target: a.target, mix: a.mix, felt: a.felt, gh: a.ghH, gc: a.gcH, num: a.numH, belief: a.beliefH })),
+      agents: agents.map(a => ({ id: a.id, target: a.target, mix: a.mix, felt: a.felt, gh: a.ghH, gc: a.gcH, num: a.numH, belief: a.beliefH, stall: a.stall })),
     };
   }
 
