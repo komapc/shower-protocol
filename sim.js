@@ -24,6 +24,7 @@
     simpleDz: 0.3,    // мёртвая зона, °C
     noise: 0,        // шум ощущаемого напора, в долях амплитуды одного мырга (до сглаживания)
     pairGap: null,   // если число: последний приходит через столько секунд после предпоследнего
+    triGap: null,    // если число: последние трое приходят с шагом triGap секунд
     dt: 0.1,
     Rh: 2.0,         // сопротивление общей горячей магистрали (связь сильная)
     Rc: 0.35,        // сопротивление холодной магистрали (связь слабая)
@@ -91,6 +92,7 @@
     for (let i = 0; i < N; i++) arrivals.push(i * p.gap + 2);
     const paired = p.pairGap != null && N >= 2;
     if (paired) arrivals[N - 1] = arrivals[N - 2] + p.pairGap;
+    if (p.triGap != null && N >= 3) { arrivals[N - 2] = arrivals[N - 3] + p.triGap; arrivals[N - 1] = arrivals[N - 3] + 2 * p.triGap; }
     const scenario = arrivals.map((t, i) => ({ t, kind: 'entry', who: i }));
     let T_END, tExit = null;
     if (N >= 2) {
@@ -167,8 +169,8 @@
       if (!a.present) return;
       const t = cur;
       if (roll) {
-        if (roll.kind === 'entry' && p.tail && t >= roll.sync + hear && t < roll.tail - 0.1) {
-          // услышал чужое синхро — пристраивается в хвост: мыргнёт после последнего старожила, выдержав тишину
+        if (roll.kind === 'entry' && p.tail && isFinite(roll.tail) && t >= roll.sync + hear && t < roll.tail - 0.1) {
+          // услышал чужое синхро, и окно под хвост держат — пристраивается: мыргнёт после последнего старожила, выдержав тишину
           roll.joiners.push(a); pulse(a, roll.tail, roll, 'хвост');
           a.ev.joined = (a.ev.joined || 0) + 1;
         } else if (roll.kind !== 'entry' || t >= roll.sync + hear) { // услышал чужое синхро — ждёт конца переклички
@@ -238,7 +240,10 @@
     // Пересчёт: синхро без ступеньки напора. Все считают мырги и ставят N = число мыргов; инициатор берёт номер N.
     function finishRecount(r) {
       if (contaminated(r, r.responders.length)) { voidRoll(r); return; }
-      const counted = countPulses(r.sync, r.end);
+      // синхро пересчёта одиночное по построению — оно и есть мерка одного мырга для слотов
+      const slots = countPulses(syncEndOf(r), r.end);
+      const unit = area(r.sync + dPure - 0.1, syncEndOf(r), phFelt[Math.max(0, Math.round(r.sync / dt) - 1)]);
+      const counted = p.mergeAccept ? 1 + slotsHeard(r, slots, unit) : countPulses(r.sync, r.end);
       r.detected = counted; r.expected = r.pulses.length;
       roll = null; lastQuiet = r.end;
       const a = r.initiators[0];
@@ -274,21 +279,62 @@
       const f = (i) => phFelt[Math.max(0, Math.min(steps - 1, i))] ?? base;
       return s + tau * (f(i1) - f(i0 - 1));
     }
-    // Сколько синхро было: всё, что ощущается до ответа №1, — синхро. Если всплеск синхро «по площади»
-    // в полтора раза и больше превышает ответ старожила (тот же кран, тот же напор) — синхро было два.
-    // Площадь, а не число пиков: два мырга вплотную сливаются в один пик, но площадь у них двойная.
+    // Сколько человек мыргнули почти разом, по отношению площадей «всплеск / один мырг». Напор от числа
+    // открытых кранов зависит нелинейно: k мыргов точно разом дают отношение g(k) > k, а разнесённые во
+    // времени — ровно k. Синхро разнесены (каждый мыргает в свою случайную паузу): k людям соответствует
+    // отношение от k до g(k), порог между k и k+1 — посередине между g(k) и k+1 (между одним и двумя — те же
+    // 1,5). В хвосте и в слоте эстафеты мыргают точно разом (exact): порог посередине между g(k) и g(k+1).
+    // Ступенька при n людях — то же знание, что и табличка (как в countPulses); абсолютный напор не нужен.
+    function kOf(ratio, exact) {
+      const n = Math.max(1, present().length), Gh = n * p.hotMark;
+      const h = (k) => 1 / (1 + p.Rh * Math.max(0, Gh - k * p.hotMark)) - 1 / (1 + p.Rh * Gh);
+      for (let k = 1; k < n; k++) if (ratio < (h(k) / h(1) + (exact ? h(k + 1) / h(1) : k + 1)) / 2) return k;
+      return Math.max(1, n - 1);
+    }
+    const baseAt = (t) => phFelt[Math.max(0, Math.round(t / dt) - 1)];
+    // База для ответов и хвоста. Мырг только поднимает напор, приход нового — только опускает. Если
+    // ступенька пришла вплотную к синхро (слишком мала, чтобы перекличку признали испорченной), напор
+    // до синхро выше, чем во время ответов, и мерка одного мырга занижается. Тогда база — «пол»
+    // переклички: нижний квантиль напора после синхро (одиночный шумный отсчёт его не сдвигает). При
+    // медленном напоре мырги соседних слотов не успевают спасть, пол выше настоящей базы — там остаётся
+    // напор до синхро. Шум тоже чуть опускает пол, поэтому пол берётся, только если он ниже напора до
+    // синхро больше чем на четверть ступеньки.
+    const rollBase = (r) => {
+      const b0 = baseAt(r.sync), fl = floorOf(syncEndOf(r), r.end);
+      return b0 - fl > 0.25 * stepH(present().length) ? fl : b0;
+    };
+    function floorOf(t0, t1) {
+      const v = [];
+      for (let i = Math.max(0, Math.round(t0 / dt)); i <= Math.min(steps - 1, Math.round(t1 / dt) - 1); i++) if (phFelt[i] != null) v.push(phFelt[i]);
+      if (!v.length) return baseAt(t0);
+      v.sort((a, b) => a - b);
+      return v[Math.floor(0.2 * (v.length - 1))];
+    }
     const syncEndOf = (r) => r.sync + hop1 + dPure - 0.1; // до этого момента ответ №1 ещё не ощущается
+    // Сколько синхро было: всё, что ощущается до ответа №1, — синхро. Площадь всплеска синхро делится
+    // на площадь ответа старожила (тот же кран, тот же напор): от 1,5 — двое и больше, сколько именно — kOf.
+    // Площадь, а не число пиков: два мырга вплотную сливаются в один пик, но площадь у них двойная.
     function syncsHeard(r, nResp) {
       const syncEnd = syncEndOf(r);
       // в пустой душевой сравнить не с чем — слияние там ловит пересчёт по температуре
       if (nResp === 0) return { m: 1, unit: null };
-      const base = phFelt[Math.max(0, Math.round(r.sync / dt) - 1)];
+      const base = phFelt[Math.max(0, Math.round(r.sync / dt) - 1)], fl = rollBase(r);
       const us = [];
-      for (let k = 1; k <= nResp; k++) { const t = r.sync + hop1 + (k - 1) * hop + dPure - 0.1; us.push(area(t, t + hop, base)); }
+      for (let k = 1; k <= nResp; k++) { const t = r.sync + hop1 + (k - 1) * hop + dPure - 0.1; us.push(area(t, t + hop, fl)); }
       us.sort((u, v) => u - v);
       const unit = us[Math.floor(us.length / 2)];
       const ratio = unit > 0 ? area(r.sync + dPure - 0.1, syncEnd, base) / unit : 1;
-      return { m: ratio >= 1.5 ? 2 : 1, unit };
+      return { m: kOf(ratio), unit };
+    }
+
+    // Сколько человек в слотах эстафеты: в слоте мыргают все с одинаковым номером, и если номер у двоих
+    // совпал (слились в пустой душевой, сравнить было не с чем), их мырги сливаются. Считаем слот по площади.
+    function slotsHeard(r, nSlots, unit) {
+      if (!unit || !(unit > 0) || !p.mergeAccept) return nSlots;
+      const base = rollBase(r);
+      let total = 0;
+      for (let k = 1; k <= nSlots; k++) { const t = r.sync + hop1 + (k - 1) * hop + dPure - 0.1; total += kOf(area(t, t + hop, base) / unit, true); }
+      return total;
     }
 
     function finishEntryRoll(r) {
@@ -297,15 +343,21 @@
       if (p.mergeAccept) {
         responses = countPulses(syncEndOf(r), split); // ответы старожилов (не сливаются: у каждого свой шаг)
         ({ m: mm, unit } = syncsHeard(r, responses));
+        responses = slotsHeard(r, responses, unit);
         // Ступенька посреди переклички портит и счёт, и сравнение площадей. При двойном синхро смотрим
-        // от конца окна синхро: ступенька второго из слившихся могла дойти уже после первого синхро.
-        if (contaminated(r, r.responders.length, mm > 1 ? syncEndOf(r) : r.sync)) { voidRoll(r); return; }
+        // от конца окна синхро: ступенька второго из слившихся могла дойти уже после первого синхро. Но если
+        // напор во время ответов провалился ниже, чем был до синхро (база ответов — пол), это не второе
+        // синхро, а пришедший посреди ответов: его ступенька и раздула «двойное» — проверять от начала.
+        const exempt = mm > 1 && rollBase(r) === baseAt(r.sync);
+        if (contaminated(r, r.responders.length, exempt ? syncEndOf(r) : r.sync)) { voidRoll(r); return; }
       } else { // как было: синхро всегда считается одним
         if (r.initiators.length === 1 && contaminated(r, r.responders.length)) { voidRoll(r); return; }
         responses = Math.max(0, countPulses(r.sync, split) - 1);
       }
       r.syncsHeard = mm;
-      const J = isFinite(r.tail) ? countPulses(split, r.end) : 0; // сколько мыргов услышано в хвосте
+      // сколько мыргов в хвосте: пристроившиеся мыргают почти разом, поэтому, если есть с чем сравнить, — по площади
+      let J = isFinite(r.tail) ? countPulses(split, r.end) : 0;
+      if (J > 0 && unit && p.mergeAccept) J = Math.max(J, kOf(area(split, r.end, rollBase(r)) / unit, true));
       r.joinHeard = J;
       r.detected = mm + responses + J; r.expected = r.pulses.length;
       const multi = r.initiators.length > 1;
@@ -328,6 +380,8 @@
       if (r.responders.length > 0) { ledger.syncs += mm + J; ledger.last = r; audit(); } else rebase();
       // слияние принято: N уже верное у всех, осталось развести одинаковые номера жребием
       if (mm > 1) startTie(r.initiators.filter(x => x.present), responses + 1, r.end, unit, r.ev);
+      // в хвосте мыргнули несколько — номер у них тоже один на всех, разводит тот же жребий
+      if (J > 1) startTie(r.joiners.filter(x => x.present), responses + mm + 1, r.end, unit, r.ev);
     }
 
     // Жребий: у слившихся одинаковый номер. Каждый ждёт случайную паузу и мыргает, если не услышал
@@ -367,6 +421,7 @@
     // кто-то слился: стоп-сигнал, последняя перекличка не в счёт.
     const phOf = (n) => 1 / (1 + p.Rh * p.hotMark * Math.max(0, n));
     const feltNow = () => phFelt[Math.max(0, kNow - 1)];
+    const dupLog = [];
     const ledger = { baseP: null, baseN: 0, syncs: 0, last: null, pending: false, jams: 0 };
     // после стоп-сигнала новенькие удваивают паузу — старожил ждёт недостающее синхро тоже вдвое дольше
     const debtWait = () => silence + cw0 * Math.pow(2, ledger.jams) + 1;
@@ -375,6 +430,14 @@
       const o = observer(); ledger.pending = false; ledger.syncs = 0; ledger.last = null; ledger.jams = 0;
       if (!o || feltNow() == null) { ledger.baseP = null; return; }
       ledger.baseP = feltNow(); ledger.baseN = o.belief || 1;
+      // при медленном напоре последний мырг ещё досыхает: через 5·tau базу уточнить, если напор опустился
+      // меньше чем на полступеньки (это хвост мырга, а не новый пришедший)
+      const b0 = ledger.baseP;
+      schedule(cur + 5 * tau + dt, () => {
+        if (ledger.baseP !== b0 || roll || feltNow() == null) return;
+        const d = b0 - feltNow();
+        if (d > 0 && d < 0.5 * stepH(ledger.baseN + 1)) ledger.baseP = feltNow();
+      });
     }
     function arrivalsFelt() {
       const drop = ledger.baseP - feltNow();
@@ -418,6 +481,10 @@
     }
 
     function release(t) {
+      if (roll === null) { // для статистики: у скольких присутствующих номер совпадает с чужим (агенты этого не видят)
+        const ns = present().filter(x => x.num > 0).map(x => x.num);
+        dupLog.push({ t, dups: ns.filter(v => ns.indexOf(v) !== ns.lastIndexOf(v)).length });
+      }
       for (const x of present()) x.nextCheckOk = t + p.L + 1;
       for (const x of present()) { x.frozen = false; x.nextAct = Math.max(x.nextAct, t + p.L + 1); }
       for (const x of present()) if (x.num === 0) x.frozen = true; // ещё не прошёл перекличку — ждёт
@@ -592,7 +659,7 @@
     const wrongByGap = p.strategy === 'relay' ? agents.filter(a => a.felt[kSch] != null && a.beliefH[kSch] !== nTrueH[kSch]).length : 0;
 
     return {
-      params: p, dt, steps, T_END, phRaw, phFelt, nTrue: nTrueH, events, rolls, discomfort, wrongBelief, wrongByGap,
+      params: p, dt, steps, T_END, phRaw, phFelt, nTrue: nTrueH, events, rolls, dupLog, discomfort, wrongBelief, wrongByGap,
       Tunit, hop, cw0,
       agents: agents.map(a => ({ id: a.id, target: a.target, mix: a.mix, felt: a.felt, gh: a.ghH, gc: a.gcH, num: a.numH, belief: a.beliefH })),
     };
