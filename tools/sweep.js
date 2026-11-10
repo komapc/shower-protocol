@@ -55,6 +55,10 @@ const sets = {
     for (const N of [2, 3, 4, 5]) { console.log(`\n— N = ${N}, P = 0.5, последние двое через Δ —`);
       for (const d of [0, 0.5, 1, 2, 3, 4, 6, 10]) row(`Δ=${d} с`, { N, P: 0.5, pairGap: d, strategy: 'relay' }); }
   },
+  triple() { // трое почти одновременно (последние трое с шагом Δ)
+    for (const P of [0.5, 1, 2, 3]) { console.log(`\n— P = ${P} с, трое через Δ —`);
+      for (const N of [3, 4, 6]) for (const d of [0, 0.3, 1]) row(`N=${N} Δ=${d} с`, { N, P, triGap: d, strategy: 'relay' }); }
+  },
   merge() { // двойное синхро: принять слияние (жребий) против стоп-сигнала и повтора
     for (const P of [0.5, 2, 3, 4]) { console.log(`\n— P = ${P} с, двое одновременно —`);
       for (const N of [2, 4, 6]) for (const ma of [false, true]) row(`N=${N} ${ma ? 'принять слияние' : 'стоп-сигнал   '}`, { N, P, pairGap: 0, mergeAccept: ma }); }
