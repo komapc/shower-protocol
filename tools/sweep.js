@@ -28,7 +28,7 @@ function row(label, cfg) {
 const sets = {
   strategies() { // стратегии × N × P
     for (const P of [0, 0.5, 1, 2, 3]) { console.log(`\n— P = ${P} с, L = 5 —`);
-      for (const N of [1, 2, 3, 4, 5, 6]) for (const st of ['naive', 'patient', 'relay']) row(`N=${N} ${st}`, { N, P, strategy: st }); }
+      for (const N of [1, 2, 3, 4, 5, 6]) for (const st of ['naive', 'patient', 'simple', 'relay']) row(`N=${N} ${st}`, { N, P, strategy: st }); }
   },
   latency() { // эстафета: задержка температуры × ошибка таблички
     for (const L of [2, 5, 8, 12]) { console.log(`\n— L = ${L} с, N = 3, P = 0.5 —`);
@@ -75,6 +75,18 @@ const sets = {
     for (const P of [0.5, 3]) { console.log(`\n— P = ${P} с, N = 4 —`);
       for (const noise of [0, 0.05, 0.1, 0.15, 0.2]) for (const pairGap of [null, 0]) for (const ma of [false, true])
         row(`шум ${noise} ${pairGap == null ? 'по одному' : 'пара     '} ${ma ? 'принять' : 'стоп   '}`, { N: 4, P, noise, pairGap, mergeAccept: ma }); }
+  },
+  simple() { // простой: холодная понемногу, без сигналов — подбор коэффициента и против эстафеты
+    for (const N of [4, 6]) { console.log(`\n— простой, N = ${N}, P = 0.5 —`);
+      for (const simpleK of [0.001, 0.0015, 0.002, 0.003]) row(`k=${simpleK}`, { N, P: 0.5, strategy: 'simple', simpleK });
+      row('k=0.0015 без случайного интервала', { N, P: 0.5, strategy: 'simple', simpleJit: 0 });
+      row('k=0.0015, события раз в 90 с', { N, P: 0.5, strategy: 'simple', gap: 90 });
+      row('k=0.001, события раз в 90 с', { N, P: 0.5, strategy: 'simple', simpleK: 0.001, gap: 90 }); }
+    for (const L of [3, 5, 8, 12]) { console.log(`\n— L = ${L} с, N = 4, P = 0.5 —`);
+      for (const st of ['simple', 'relay']) row(st, { N: 4, P: 0.5, L, strategy: st }); }
+    for (const P of [0.5, 3]) { console.log(`\n— P = ${P} с —`);
+      for (const N of [2, 4, 6]) for (const st of ['simple', 'relay']) row(`N=${N} ${st}`, { N, P, strategy: st });
+      for (const st of ['simple', 'relay']) row(`пара Δ=0 N=6 ${st}`, { N: 6, P, pairGap: 0, strategy: st }); }
   },
 };
 const t0 = Date.now();
