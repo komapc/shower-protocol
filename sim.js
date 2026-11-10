@@ -14,8 +14,10 @@
     tailAlways: false, // держать окно под хвост в каждой перекличке (иначе — только при лишней ступеньке)      // услышавший чужое синхро новенький пристраивается в хвост той же переклички
     cwK: 2,          // окно случайной паузы перед синхро не меньше cwK·P (слышно чужое синхро только через ~P)
     tK: 0.2,         // адаптивный темп: T = max(0.5, tK·P); 0.8 давало слишком длинные мырги
+    mergeAccept: true, // слившиеся синхро распознаются по напору: N верное сразу, номера разводит жребий
     earlyJump: true, // старожилы прыгают сразу, не дожидаясь конца переклички
     strategy: 'relay', // naive | patient | relay
+    noise: 0,        // шум ощущаемого напора, в долях амплитуды одного мырга (до сглаживания)
     pairGap: null,   // если число: последний приходит через столько секунд после предпоследнего
     dt: 0.1,
     Rh: 2.0,         // сопротивление общей горячей магистрали (связь сильная)
@@ -76,7 +78,7 @@
 
   function simulate(opts) {
     const p = Object.assign({}, DEF, opts || {});
-    const R = rng(p.seed);
+    const R = rng(p.seed), Rn = rng(p.seed * 7919 + 13); // Rn — отдельный поток для шума, чтобы без шума ничего не менялось
     const dt = p.dt, N = p.N;
 
     // ---------- scenario ----------
@@ -85,9 +87,9 @@
     const paired = p.pairGap != null && N >= 2;
     if (paired) arrivals[N - 1] = arrivals[N - 2] + p.pairGap;
     const scenario = arrivals.map((t, i) => ({ t, kind: 'entry', who: i }));
-    let T_END;
+    let T_END, tExit = null;
     if (N >= 2) {
-      const tExit = Math.max(...arrivals) + p.gap;
+      tExit = Math.max(...arrivals) + p.gap;
       scenario.push({ t: tExit, kind: 'exit', who: paired && N === 2 ? 0 : 1 });
       T_END = tExit + p.gap;
     } else T_END = p.gap * 1.5;
@@ -202,8 +204,8 @@
     // Ступенька напора за время переклички: если базовый напор до синхро и после конца разный,
     // кто-то пришёл посреди переклички и мог «съесть» мырг — результату верить нельзя.
     function stepH(n) { const Gh = Math.max(1, n) * p.hotMark; return 1 / (1 + p.Rh * (Gh - p.hotMark)) - 1 / (1 + p.Rh * Gh); }
-    function contaminated(r, nKnown) {
-      const k0 = Math.max(0, Math.round(r.sync / dt) - 1), k1 = Math.min(steps - 1, Math.round(r.end / dt) - 1); // текущий шаг ещё не посчитан
+    function contaminated(r, nKnown, tFrom) {
+      const k0 = Math.max(0, Math.round((tFrom ?? r.sync) / dt) - 1), k1 = Math.min(steps - 1, Math.round(r.end / dt) - 1); // текущий шаг ещё не посчитан
       if (phFelt[k0] == null || phFelt[k1] == null) return false;
       // под душем nKnown старожилов + инициатор; пришедший добавит ступеньку при nKnown + 2
       return Math.abs(phFelt[k0] - phFelt[k1]) > 0.5 * stepH(nKnown + 2);
@@ -254,32 +256,98 @@
       startEntryRoll(a, cur, 'recount');
     }
 
+    // Площадь всплеска в окне ощущаемого напора. Ощущение сглажено (≈ запаздывание с постоянной tau),
+    // поэтому к площади добавляется tau·(f(конец) − f(начало)): так хвост, переползший через границу окна,
+    // засчитывается тому мыргу, которому он принадлежит. tau человек знает: она того же порядка, что P.
+    function area(t0, t1, base) {
+      let s = 0; const i0 = Math.max(0, Math.round(t0 / dt)), i1 = Math.min(steps - 1, Math.round(t1 / dt) - 1);
+      for (let i = i0; i <= i1; i++) if (phFelt[i] != null) s += (phFelt[i] - base) * dt;
+      const f = (i) => phFelt[Math.max(0, Math.min(steps - 1, i))] ?? base;
+      return s + tau * (f(i1) - f(i0 - 1));
+    }
+    // Сколько синхро было: всё, что ощущается до ответа №1, — синхро. Если всплеск синхро «по площади»
+    // в полтора раза и больше превышает ответ старожила (тот же кран, тот же напор) — синхро было два.
+    // Площадь, а не число пиков: два мырга вплотную сливаются в один пик, но площадь у них двойная.
+    const syncEndOf = (r) => r.sync + hop + dPure - 0.1; // до этого момента ответ №1 ещё не ощущается
+    function syncsHeard(r, nResp) {
+      const syncEnd = syncEndOf(r);
+      // в пустой душевой сравнить не с чем — слияние там ловит пересчёт по температуре
+      if (nResp === 0) return { m: 1, unit: null };
+      const base = phFelt[Math.max(0, Math.round(r.sync / dt) - 1)];
+      const us = [];
+      for (let k = 1; k <= nResp; k++) { const t = r.sync + k * hop + dPure - 0.1; us.push(area(t, t + hop, base)); }
+      us.sort((u, v) => u - v);
+      const unit = us[Math.floor(us.length / 2)];
+      const ratio = unit > 0 ? area(r.sync + dPure - 0.1, syncEnd, base) / unit : 1;
+      return { m: ratio >= 1.5 ? 2 : 1, unit };
+    }
+
     function finishEntryRoll(r) {
-      if (r.initiators.length === 1 && contaminated(r, r.responders.length)) { voidRoll(r); return; }
       const split = isFinite(r.tail) ? r.tail - 0.1 : r.end;
-      const counted = countPulses(r.sync, split);
+      let responses, mm = 1, unit = null;
+      if (p.mergeAccept) {
+        responses = countPulses(syncEndOf(r), split); // ответы старожилов (не сливаются: у каждого свой шаг)
+        ({ m: mm, unit } = syncsHeard(r, responses));
+        // Ступенька посреди переклички портит и счёт, и сравнение площадей. При двойном синхро смотрим
+        // от конца окна синхро: ступенька второго из слившихся могла дойти уже после первого синхро.
+        if (contaminated(r, r.responders.length, mm > 1 ? syncEndOf(r) : r.sync)) { voidRoll(r); return; }
+      } else { // как было: синхро всегда считается одним
+        if (r.initiators.length === 1 && contaminated(r, r.responders.length)) { voidRoll(r); return; }
+        responses = Math.max(0, countPulses(r.sync, split) - 1);
+      }
+      r.syncsHeard = mm;
       const J = isFinite(r.tail) ? countPulses(split, r.end) : 0; // сколько мыргов услышано в хвосте
       r.joinHeard = J;
-      r.detected = counted + J; r.expected = r.pulses.length;
-      const responses = Math.max(0, counted - 1);
+      r.detected = mm + responses + J; r.expected = r.pulses.length;
       const multi = r.initiators.length > 1;
       roll = null; lastQuiet = r.end;
-      // обычный исход (или незамеченная коллизия в пустой душевой)
-      for (const x of r.responders) { x.belief = (x.belief || 0) + 1 + J; if (x.tableN !== x.belief) setTable(x, x.belief); }
+      for (const x of r.responders) { x.belief = (x.belief || 0) + mm + J; if (x.tableN !== x.belief) setTable(x, x.belief); }
       for (const x of r.initiators) {
-        x.belief = responses + 1 + J; x.num = responses + 1;
+        if (mm > 1) x.ev.mergeAccepted = true;
+        x.belief = responses + mm + J; x.num = responses + 1;
         setTable(x, x.belief);
         schedule(r.end + p.L + 1, () => check(x));
       }
       for (const x of r.joiners) {
-        x.belief = responses + 1 + J; x.num = responses + 2;
+        x.belief = responses + mm + J; x.num = responses + mm + 1;
         setTable(x, x.belief);
         schedule(r.end + p.L + 1, () => check(x));
       }
       if (multi && r.responders.length === 0) r.silentCollision = true;
       if (multi) r.merged = true; // для статистики: синхро слились (сами агенты этого не знают)
       release(r.end);
-      if (r.responders.length > 0) { ledger.syncs += 1 + J; ledger.last = r; audit(); } else rebase();
+      if (r.responders.length > 0) { ledger.syncs += mm + J; ledger.last = r; audit(); } else rebase();
+      // слияние принято: N уже верное у всех, осталось развести одинаковые номера жребием
+      if (mm > 1) startTie(r.initiators.filter(x => x.present), responses + 1, r.end, unit, r.ev);
+    }
+
+    // Жребий: у слившихся одинаковый номер. Каждый ждёт случайную паузу и мыргает, если не услышал
+    // другого раньше. Мыргнувший первым оставляет номер, остальные берут следующий. Мыргнули почти
+    // разом (всплеск вдвое больше одного мырга) — повтор с паузой вдвое длиннее.
+    function startTie(members, base, t0, unit, ev) {
+      if (members.length < 2) return;
+      if (roll) { schedule(roll.end + 0.2, () => startTie(members, base, cur, unit, ev)); return; }
+      const wait = Math.max(...members.map(x => x.cw));
+      const r = { kind: 'tie', sync: t0, initiators: members, pulses: [], ev, base, end: t0 + silence + wait + hear + Tunit + dPure + silence };
+      roll = r; rolls.push(r);
+      // никого не замораживает: N уже верное, поправки по температуре идут своим чередом
+      const fired = [];
+      for (const x of members) schedule(t0 + silence + R() * x.cw, () => {
+        if (!x.present || fired.some(f => cur >= f.t + hear)) return; // услышал чужой мырг — уступает
+        fired.push({ x, t: cur }); pulse(x, cur, r, 'жребий');
+      });
+      schedule(r.end, () => {
+        roll = null; lastQuiet = r.end;
+        const first = fired[0];
+        let heardTwo = fired.length >= 2; // запасной путь, если не с чем сравнить
+        if (first && unit) heardTwo = area(first.t, r.end, phFelt[Math.max(0, Math.round(first.t / dt) - 1)]) / unit >= 1.5; // по ощущаемому
+        r.tieClash = heardTwo; r.detected = heardTwo ? 2 : first ? 1 : 0; r.expected = fired.length;
+        if (!first) return;
+        if (heardTwo) { for (const x of members) x.cw *= p.jamGrow; startTie(members.filter(x => x.present), base, r.end, unit, ev); return; }
+        const rest = members.filter(x => x !== first.x && x.present);
+        for (const x of rest) x.num = base + 1;
+        if (rest.length > 1) startTie(rest, base + 1, r.end, unit, ev);
+      });
     }
 
     // ---------- учёт ступенек: стоп-сигнал по ощущаемому напору ----------
@@ -328,7 +396,7 @@
       pulse(jammer, jt, jr, 'стоп', jamLen);
       last.jammed = true;
       // последняя перекличка не в счёт: её новенькие сбрасывают номер, старожилы откатывают N
-      const back = 1 + (last.joinHeard || 0), redo = last.initiators.concat(last.joiners || []);
+      const back = (last.syncsHeard || 1) + (last.joinHeard || 0), redo = last.initiators.concat(last.joiners || []);
       for (const x of redo) { x.num = 0; x.belief = null; x.cw *= p.jamGrow; x.ev.jammed = (x.ev.jammed || 0) + 1; }
       for (const x of last.responders) if (x.present) { x.belief = Math.max(1, (x.belief || 1) - back); if (x.tableN !== x.belief) setTable(x, x.belief); }
       ledger.syncs = Math.max(0, ledger.syncs - back); ledger.last = null; ledger.jams += 1;
@@ -458,7 +526,11 @@
       const { ph, pc } = linePressures(agents, p, now);
       const nP = present().length;
       phRaw[k] = nP > 0 ? ph : null; nTrueH[k] = nP;
-      const src = k - dPs >= 0 ? phRaw[k - dPs] : null;
+      let src = k - dPs >= 0 ? phRaw[k - dPs] : null;
+      if (src != null && p.noise > 0) { // шум ощущения: в долях одного мырга при текущем числе людей
+        const g = Math.sqrt(-2 * Math.log(1 - Rn())) * Math.cos(2 * Math.PI * Rn());
+        src += p.noise * stepH(Math.max(2, nTrueH[k - dPs])) * g;
+      }
       if (src == null) phFelt[k] = lag;
       else { if (lag == null || tau === 0) lag = src; else lag += (src - lag) * (1 - Math.exp(-dt / tau)); phFelt[k] = lag; }
       for (const a of agents) {
@@ -499,9 +571,13 @@
     const exitEv = events.find(e => e.kind === 'exit');
     const kChk = exitEv ? Math.max(0, Math.round(exitEv.t / dt) - 1) : steps - 1;
     const wrongBelief = p.strategy === 'relay' ? agents.filter(a => a.felt[kChk] != null && a.beliefH[kChk] !== nTrueH[kChk]).length : 0;
+    // то же, но строго к плановому времени выхода: уходящий ждёт тишины, и без этого затянувшаяся
+    // перекличка отодвигает момент проверки и прячет ошибку
+    const kSch = tExit != null ? Math.min(steps - 1, Math.round(tExit / dt) - 1) : steps - 1;
+    const wrongByGap = p.strategy === 'relay' ? agents.filter(a => a.felt[kSch] != null && a.beliefH[kSch] !== nTrueH[kSch]).length : 0;
 
     return {
-      params: p, dt, steps, T_END, phRaw, phFelt, nTrue: nTrueH, events, rolls, discomfort, wrongBelief,
+      params: p, dt, steps, T_END, phRaw, phFelt, nTrue: nTrueH, events, rolls, discomfort, wrongBelief, wrongByGap,
       Tunit, hop, cw0,
       agents: agents.map(a => ({ id: a.id, target: a.target, mix: a.mix, felt: a.felt, gh: a.ghH, gc: a.gcH, num: a.numH, belief: a.beliefH })),
     };
