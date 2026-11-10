@@ -14,6 +14,7 @@
     tailAlways: false, // держать окно под хвост в каждой перекличке (иначе — только при лишней ступеньке)      // услышавший чужое синхро новенький пристраивается в хвост той же переклички
     cwK: 2,          // окно случайной паузы перед синхро не меньше cwK·P (слышно чужое синхро только через ~P)
     tK: 0.2,         // адаптивный темп: T = max(0.5, tK·P); 0.8 давало слишком длинные мырги
+    relayPause: false, // true = прежний шаг эстафеты с лишней паузой
     mergeAccept: true, // слившиеся синхро распознаются по напору: N верное сразу, номера разводит жребий
     earlyJump: true, // старожилы прыгают сразу, не дожидаясь конца переклички
     strategy: 'relay', // naive | patient | relay
@@ -127,7 +128,11 @@
     const pause = p.adaptive ? Tunit : 0.5;
     const perceive = dPure + 5 * tau + (p.P > 0 ? 0.3 : 0); // напор устоялся
     const hear = dPure + 0.3;               // через сколько после начала чужого мырга его слышно
-    const hop = Tunit + dPure + pause + 0.3; // эстафета: дождаться, пока услышишь, и выдержать паузу
+    // эстафета: №k мыргает, как только услышал конец мырга №k−1 (relayPause — прежняя пауза на каждом шаге).
+    // Только №1 после синхро выжидает паузу: хвост синхро (а при слиянии — двух) должен затихнуть,
+    // чтобы по нему можно было и сравнить площади, и проверить ступеньку.
+    const hop = Tunit + hear + (p.relayPause ? pause : 0);
+    const hop1 = Tunit + hear + pause;
     const silence = 3 * Tunit;
     const jamLen = 5 * Tunit;
     const cw0 = Math.max(3, 6 * Tunit, p.cwK * p.P); // окно паузы должно покрывать время, за которое слышно чужое синхро     // окно случайной паузы перед синхро-мыргом
@@ -189,7 +194,7 @@
       const responders = present().filter(x => x.num > 0 && x !== a);
       const slots = slotsOf(responders);
       let tt = t;
-      slots.forEach(g => { tt += hop; g.forEach(x => pulse(x, tt, r, '#' + x.num)); });
+      slots.forEach((g, i) => { tt += i ? hop : hop1; g.forEach(x => pulse(x, tt, r, '#' + x.num)); });
       r.lastSlot = tt; r.joiners = [];
       // хвост: после последнего старожила пауза длиннее обычного шага — там мыргают пристроившиеся новенькие
       // окно под хвост держат, только если по напору видно, что пришедших больше, чем синхро
@@ -268,14 +273,14 @@
     // Сколько синхро было: всё, что ощущается до ответа №1, — синхро. Если всплеск синхро «по площади»
     // в полтора раза и больше превышает ответ старожила (тот же кран, тот же напор) — синхро было два.
     // Площадь, а не число пиков: два мырга вплотную сливаются в один пик, но площадь у них двойная.
-    const syncEndOf = (r) => r.sync + hop + dPure - 0.1; // до этого момента ответ №1 ещё не ощущается
+    const syncEndOf = (r) => r.sync + hop1 + dPure - 0.1; // до этого момента ответ №1 ещё не ощущается
     function syncsHeard(r, nResp) {
       const syncEnd = syncEndOf(r);
       // в пустой душевой сравнить не с чем — слияние там ловит пересчёт по температуре
       if (nResp === 0) return { m: 1, unit: null };
       const base = phFelt[Math.max(0, Math.round(r.sync / dt) - 1)];
       const us = [];
-      for (let k = 1; k <= nResp; k++) { const t = r.sync + k * hop + dPure - 0.1; us.push(area(t, t + hop, base)); }
+      for (let k = 1; k <= nResp; k++) { const t = r.sync + hop1 + (k - 1) * hop + dPure - 0.1; us.push(area(t, t + hop, base)); }
       us.sort((u, v) => u - v);
       const unit = us[Math.floor(us.length / 2)];
       const ratio = unit > 0 ? area(r.sync + dPure - 0.1, syncEnd, base) / unit : 1;
