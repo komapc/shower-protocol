@@ -155,9 +155,9 @@
     }
 
     // ---------- шпаргалка (sheet): перекличка по номерам кабинок ----------
-    // Пришёл или почувствовал скачок напора — мыргни. Услышав мырг, каждый мыргает на своей секунде:
-    // номер кабинки × шаг. Все считают мырги — это N. Холодный на метку для N, дальше тихая подкрутка.
-    // Скачок напора посреди переклички — после неё перекличка заново.
+    // Почувствовал скачок напора (кто-то открыл или закрыл кран, в том числе ты сам) — через номер кабинки × шаг
+    // мыргни. Все считают мырги — это N. Холодный на деление для N, дальше тихая подкрутка.
+    // Скачок напора посреди переклички — после неё все мыргают разом (стук) и перекличка заново.
     const slotS = p.sheetSlot || Math.max(2, Tunit + p.P + 0.5);
     let call = null;
     if (p.strategy === 'sheet') {
@@ -165,17 +165,18 @@
       for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
       agents.forEach((a, i) => { a.stall = 1 + ((order[i] - 1) % Math.max(p.stalls, N)); });
     }
-    function sheetCall(t) {
-      if (call) { if (call.started) call.dirty = true; return; }   // перекличка ещё не началась — новичок в неё и так попадёт
-      call = { pending: true };
-      schedule(t, () => startCall(t));
+    // t — момент, когда скачок напора почувствовали; knock — повтор после сбитой переклички (скачка нет, нужен стук)
+    function sheetCall(t, knock) {
+      if (call) { if (call.started || t > call.t) call.dirty = true; return; }
+      call = { pending: true, t };
+      schedule(t, () => startCall(t, knock));
     }
-    function startCall(t) {
-      const who = present();
+    function startCall(t, knock) {
+      const who = present(), dirty = !!call.dirty;
       if (!who.length) { call = null; return; }
-      const r = { kind: 'call', sync: t, initiators: who, pulses: [], ev: who[who.length - 1].ev, started: true };
+      const r = { kind: 'call', sync: t, initiators: who, pulses: [], ev: who[who.length - 1].ev, started: true, dirty };
       call = r; rolls.push(r);
-      who.forEach(x => pulse(x, t, r, 'стук'));             // мыргнули все, кто почувствовал (сливается в один)
+      if (knock) who.forEach(x => pulse(x, t, r, 'стук'));  // стучат все разом — сливается в один
       who.forEach(x => pulse(x, t + x.stall * slotS, r, 'каб.' + x.stall));
       r.end = t + Math.max(p.stalls, N) * slotS + Tunit + dPure + 5 * tau + 0.3;
       r.members = who;
@@ -188,7 +189,7 @@
           if (counted > 0) { x.gc = tableEntry(x, p, counted); x.tableN = counted; }
           x.nextAct = Math.max(x.nextAct, r.end + p.L + 1);
         }
-        if (r.dirty) sheetCall(r.end + 0.5);
+        if (r.dirty) sheetCall(r.end + 0.5, true);
       });
     }
 
@@ -632,7 +633,7 @@
           else if (p.strategy === 'patient') { a.gh = p.hotMark; a.gc = 0.4; a.nextAct = now + p.L + 1; }
           else if (p.strategy === 'sheet') {
             a.gh = p.hotMark; a.gc = tableEntry(a, p, 2); a.num = a.stall; a.belief = null; a.tick = 1; a.nextAct = now + p.L + 1;
-            sheetCall(now + 0.1);   // пришедший стучит сразу
+            sheetCall(now + perceive);   // открытие крана — само по себе сигнал, стук не нужен
           }
           else arriveRelay(a, now);
         } else if (p.strategy === 'relay') {
@@ -644,7 +645,7 @@
           leave();
         } else {
           a.present = false;
-          if (p.strategy === 'sheet') sheetCall(now + perceive + 0.5);
+          if (p.strategy === 'sheet') sheetCall(now + perceive);
         }
       }
       let guard = 0;
