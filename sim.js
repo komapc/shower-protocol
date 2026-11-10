@@ -345,8 +345,11 @@
         ({ m: mm, unit } = syncsHeard(r, responses));
         responses = slotsHeard(r, responses, unit);
         // Ступенька посреди переклички портит и счёт, и сравнение площадей. При двойном синхро смотрим
-        // от конца окна синхро: ступенька второго из слившихся могла дойти уже после первого синхро.
-        if (contaminated(r, r.responders.length, mm > 1 ? syncEndOf(r) : r.sync)) { voidRoll(r); return; }
+        // от конца окна синхро: ступенька второго из слившихся могла дойти уже после первого синхро. Но если
+        // напор во время ответов провалился ниже, чем был до синхро (база ответов — пол), это не второе
+        // синхро, а пришедший посреди ответов: его ступенька и раздула «двойное» — проверять от начала.
+        const exempt = mm > 1 && rollBase(r) === baseAt(r.sync);
+        if (contaminated(r, r.responders.length, exempt ? syncEndOf(r) : r.sync)) { voidRoll(r); return; }
       } else { // как было: синхро всегда считается одним
         if (r.initiators.length === 1 && contaminated(r, r.responders.length)) { voidRoll(r); return; }
         responses = Math.max(0, countPulses(r.sync, split) - 1);
