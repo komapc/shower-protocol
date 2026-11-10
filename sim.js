@@ -204,8 +204,8 @@
     // Ступенька напора за время переклички: если базовый напор до синхро и после конца разный,
     // кто-то пришёл посреди переклички и мог «съесть» мырг — результату верить нельзя.
     function stepH(n) { const Gh = Math.max(1, n) * p.hotMark; return 1 / (1 + p.Rh * (Gh - p.hotMark)) - 1 / (1 + p.Rh * Gh); }
-    function contaminated(r, nKnown) {
-      const k0 = Math.max(0, Math.round(r.sync / dt) - 1), k1 = Math.min(steps - 1, Math.round(r.end / dt) - 1); // текущий шаг ещё не посчитан
+    function contaminated(r, nKnown, tFrom) {
+      const k0 = Math.max(0, Math.round((tFrom ?? r.sync) / dt) - 1), k1 = Math.min(steps - 1, Math.round(r.end / dt) - 1); // текущий шаг ещё не посчитан
       if (phFelt[k0] == null || phFelt[k1] == null) return false;
       // под душем nKnown старожилов + инициатор; пришедший добавит ступеньку при nKnown + 2
       return Math.abs(phFelt[k0] - phFelt[k1]) > 0.5 * stepH(nKnown + 2);
@@ -288,7 +288,9 @@
       if (p.mergeAccept) {
         responses = countPulses(syncEndOf(r), split); // ответы старожилов (не сливаются: у каждого свой шаг)
         ({ m: mm, unit } = syncsHeard(r, responses));
-        if (mm === 1 && contaminated(r, r.responders.length)) { voidRoll(r); return; }
+        // Ступенька посреди переклички портит и счёт, и сравнение площадей. При двойном синхро смотрим
+        // от конца окна синхро: ступенька второго из слившихся могла дойти уже после первого синхро.
+        if (contaminated(r, r.responders.length, mm > 1 ? syncEndOf(r) : r.sync)) { voidRoll(r); return; }
       } else { // как было: синхро всегда считается одним
         if (r.initiators.length === 1 && contaminated(r, r.responders.length)) { voidRoll(r); return; }
         responses = Math.max(0, countPulses(r.sync, split) - 1);
