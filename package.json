@@ -2,6 +2,7 @@
   "name": "shower-protocol",
   "version": "0.7.0",
   "private": true,
+  "license": "MIT",
   "description": "Протокол для нескольких душевых на общей горячей магистрали: симулятор и визуализация",
   "scripts": {
     "strategies": "node tools/strategies.js",
