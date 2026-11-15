@@ -12,7 +12,7 @@ This repo is a simulator and an interactive page that compare several ways out o
 
 The story of how it was built (with Claude, and why a dumb rule turned out to be almost as good) is in
 [ARTICLE.md](ARTICLE.md). The full technical write-up, with every table and known limitation, is in
-Russian: [README.ru.md](README.ru.md). The interactive page is in Russian too.
+Russian: [README.ru.md](README.ru.md). The interactive page is in English and Russian (`?lang=en` / `?lang=ru`).
 
 ## Strategies
 

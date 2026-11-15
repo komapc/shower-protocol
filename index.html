@@ -52,9 +52,11 @@ body {
   padding-block: 28px 48px;
   display: grid; gap: 20px;
 }
-header { display: grid; gap: 6px; }
+header { display: grid; gap: 6px; position: relative; padding-right: 64px; }
 h1 { font-family: var(--f-display); font-weight: 700; font-size: clamp(22px, 4vw, 32px); margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
 h2 { font-family: var(--f-display); font-weight: 500; font-size: 15px; margin: 0; letter-spacing: 0.01em; }
+.lang { position: absolute; top: 0; right: 0; font-size: 13px; font-family: var(--f-mono); display: flex; gap: 8px; }
+.lang a { color: var(--muted); text-decoration: none; } .lang a[aria-current] { color: var(--fg); font-weight: 600; }
 .lead { margin: 0; color: var(--muted); max-width: 70ch; }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
 .mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
@@ -163,8 +165,8 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
 
 <div class="wrap">
   <header>
-    <h1>Душевой протокол</h1>
-    <p class="lead">Несколько душевых на одной горячей трубе. Кто-то приходит, кто-то уходит, температура доходит до лейки через <span class="mono" id="leadL">5</span>&nbsp;с. Симуляция сравнивает, как быстро все снова оказываются в своей зоне комфорта (±0,5&nbsp;°C) при пяти способах крутить краны.</p>
+    <h1 data-i18n="h1">Душевой протокол</h1><nav class="lang" id="langNav"></nav>
+    <p class="lead" data-i18n="lead">Несколько душевых на одной горячей трубе. Кто-то приходит, кто-то уходит, температура доходит до лейки через <span class="mono" id="leadL">5</span>&nbsp;с. Симуляция сравнивает, как быстро все снова оказываются в своей зоне комфорта (±0,5&nbsp;°C) при пяти способах крутить краны.</p>
   </header>
 
   <section class="panel controls" aria-label="Параметры">
@@ -178,20 +180,20 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
       </div>
       <p class="strat-note" id="stratNote"></p>
       <div class="checks" id="relayChecks">
-        <label><input type="checkbox" id="adaptive" checked> Темп T подстраивается под напор</label>
-        <label><input type="checkbox" id="early" checked> Старожилы прыгают сразу</label>
+        <label><input type="checkbox" id="adaptive" checked> <span data-i18n="adaptive">Темп T подстраивается под напор</span></label>
+        <label><input type="checkbox" id="early" checked> <span data-i18n="early">Старожилы прыгают сразу</span></label>
       </div>
       <div class="pair-row" id="pairRow" aria-disabled="true">
-        <label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="pair" style="accent-color:var(--accent)"> Последние двое приходят почти одновременно</label>
-        <div class="sl"><label for="sD">Второй через <b id="vD">1 с</b></label><input type="range" id="sD" min="0" max="10" step="0.5" value="1"></div>
-        <button class="btn ghost small" id="reseed" title="Другие случайные паузы и ошибки табличек">Другой случай <span class="mono" id="vSeed">#2</span></button>
+        <label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="pair" style="accent-color:var(--accent)"> <span data-i18n="pair">Последние двое приходят почти одновременно</span></label>
+        <div class="sl"><label for="sD"><span data-i18n="sD">Второй через</span> <b id="vD">1 с</b></label><input type="range" id="sD" min="0" max="10" step="0.5" value="1"></div>
+        <button class="btn ghost small" id="reseed" title="Другие случайные паузы и ошибки табличек"><span data-i18n="reseed">Другой случай</span> <span class="mono" id="vSeed">#2</span></button>
       </div>
     </div>
     <div class="sliders">
-      <div class="sl"><label for="sN">Сколько людей придёт <b id="vN">3</b></label><input type="range" id="sN" min="1" max="6" step="1" value="3"></div>
-      <div class="sl"><label for="sL">Задержка температуры <b id="vL">5 с</b></label><input type="range" id="sL" min="2" max="10" step="0.5" value="5"></div>
-      <div class="sl"><label for="sP">Задержка напора <b id="vP">0,5 с</b></label><input type="range" id="sP" min="0" max="5" step="0.25" value="0.5"></div>
-      <div class="sl"><label for="sTol">Ошибка личной таблички <b id="vTol">±6 %</b></label><input type="range" id="sTol" min="0" max="25" step="1" value="6"></div>
+      <div class="sl"><label for="sN"><span data-i18n="sN">Сколько людей придёт</span> <b id="vN">3</b></label><input type="range" id="sN" min="1" max="6" step="1" value="3"></div>
+      <div class="sl"><label for="sL"><span data-i18n="sL">Задержка температуры</span> <b id="vL">5 с</b></label><input type="range" id="sL" min="2" max="10" step="0.5" value="5"></div>
+      <div class="sl"><label for="sP"><span data-i18n="sP">Задержка напора</span> <b id="vP">0,5 с</b></label><input type="range" id="sP" min="0" max="5" step="0.25" value="0.5"></div>
+      <div class="sl"><label for="sTol"><span data-i18n="sTol">Ошибка личной таблички</span> <b id="vTol">±6 %</b></label><input type="range" id="sTol" min="0" max="25" step="1" value="6"></div>
     </div>
   </section>
 
@@ -207,19 +209,19 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
 
   <section class="panel" aria-label="Температура">
     <div class="chart-head">
-      <h2>Температура у лейки, °C</h2>
+      <h2 data-i18n="hT">Температура у лейки, °C</h2>
       <div class="legend" id="legT"></div>
     </div>
     <div class="canvas-box"><canvas id="cT"></canvas><div class="tip" id="tip" hidden></div></div>
-    <p class="caption">Пунктир — цель каждого. Затемнённые полосы — перекличка. Отрезки под осью: сколько секунд ушло, чтобы все вернулись в зону ±0,5&nbsp;°C.</p>
+    <p class="caption" data-i18n="capT">Пунктир — цель каждого. Затемнённые полосы — перекличка. Отрезки под осью: сколько секунд ушло, чтобы все вернулись в зону ±0,5&nbsp;°C.</p>
   </section>
 
   <section class="panel" aria-label="Напор">
     <div class="chart-head">
-      <h2>Напор в горячей трубе</h2>
+      <h2 data-i18n="hP">Напор в горячей трубе</h2>
       <div class="legend">
-        <span><i class="ln" style="background:var(--muted);opacity:.5"></i>в трубе</span>
-        <span><i class="ln" style="background:var(--accent)"></i>как ощущается</span>
+        <span><i class="ln" style="background:var(--muted);opacity:.5"></i><span data-i18n="inPipe">в трубе</span></span>
+        <span><i class="ln" style="background:var(--accent)"></i><span data-i18n="felt">как ощущается</span></span>
       </div>
     </div>
     <div class="canvas-box"><canvas id="cP"></canvas><div class="tip" id="tip2" hidden></div></div>
@@ -227,15 +229,15 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
   </section>
 
   <section class="panel" aria-label="Сравнение">
-    <h2>Сколько секунд до схождения после каждого события</h2>
+    <h2 data-i18n="hTbl">Сколько секунд до схождения после каждого события</h2>
     <div class="tbl-box"><table id="tbl"></table></div>
-    <p class="caption">Те же параметры, все пять стратегий. «Не сошлось» — до следующего события кто-то так и остался вне зоны. Дискомфорт — сумма по людям выхода за ±0,5&nbsp;°C, в градусо-секундах; меньше лучше.</p>
+    <p class="caption" data-i18n="capTbl">Те же параметры, все пять стратегий. «Не сошлось» — до следующего события кто-то так и остался вне зоны. Дискомфорт — сумма по людям выхода за ±0,5&nbsp;°C, в градусо-секундах; меньше лучше.</p>
   </section>
 
   <section class="panel" aria-label="Двое одновременно" id="pairPanel">
-    <h2>Если двое приходят почти одновременно</h2>
-    <p class="caption" style="font-size:14px;color:var(--fg)">Открыть горячую и услышать напор можно только вместе: слушать, не открыв кран, нельзя. Поэтому оба уже стоят под водой, когда выясняется, что их двое. В протокол добавлены пять правил:</p>
-    <ol class="rules">
+    <h2 data-i18n="hPair">Если двое приходят почти одновременно</h2>
+    <p class="caption" style="font-size:14px;color:var(--fg)" data-i18n="pairIntro">Открыть горячую и услышать напор можно только вместе: слушать, не открыв кран, нельзя. Поэтому оба уже стоят под водой, когда выясняется, что их двое. В протокол добавлены пять правил:</p>
+    <ol class="rules" data-i18n="rules">
       <li><b>Слушай, потом мыргай.</b> Открыв горячую, выжди случайную паузу (до <span class="mono" id="cwOut">3</span>&nbsp;с) и мыргай синхро, только если за это время ничего не услышал. Услышал чужое синхро — пристройся в хвост: мыргни после последнего старожила, выдержав тишину, и возьми следующий номер. Окно под хвост держат, только если по напору видно, что пришедших больше, чем синхро.</li>
       <li><b>Двойное синхро.</b> Если двое мыргнули синхро почти разом, всплеск до ответа №1 по площади вдвое больше ответа любого старожила (тот же кран, тот же напор). Это слышат все: N = ответы + 2, у обоих новеньких пока один номер. Втрое и больше — столько же синхро (напор зависит от числа кранов нелинейно, поэтому сравнивают с тем, что дали бы k мыргов разом). Сразу после переклички — жребий: каждый выжидает случайную паузу и мыргает, если не услышал другого. Мыргнувший первым оставляет номер, остальные берут следующий; мыргнули разом — повтор с вдвое большей паузой. Хвост и каждый слот эстафеты тоже считают по площади, а двое пристроившихся в хвост разводят номера тем же жребием.</li>
       <li><b>Стоп-сигнал (запасной).</b> Старожил почувствовал две ступеньки напора, а синхро услышал одно. Он ждёт: вдруг второй просто отложил свою перекличку. Если недостающее синхро так и не пришло, синхро слились — он закрывает горячую надолго (5T). Последняя перекличка не в счёт: её новенькие забывают номер и пробуют снова, с вдвое большей паузой, а старожил после каждого стоп-сигнала ждёт тоже вдвое дольше.</li>
@@ -243,27 +245,27 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
       <li><b>Ступенька посреди переклички портит её.</b> Уходящий ждёт тишины. Пришедший ждать не может — он должен открыть кран, чтобы слушать; поэтому начавший перекличку сравнивает напор до синхро и после её конца и, если напор сместился, сразу повторяет перекличку.</li>
     </ol>
     <div id="pairStatsBox" style="display:grid;gap:8px">
-      <h2 id="pairStatsTitle">30 случайных прогонов с текущими настройками</h2>
+      <h2 id="pairStatsTitle" data-i18n="pairStatsTitle">30 случайных прогонов с текущими настройками</h2>
       <div class="stats" id="pairStats"></div>
       <p class="caption" id="pairStatsNote"></p>
     </div>
   </section>
 
   <section class="panel" aria-label="Шпаргалка">
-    <h2>Шпаргалка «договора» — повесить в душевой</h2>
-    <ol class="sheet">
+    <h2 data-i18n="hSheet">Шпаргалка «договора» — повесить в душевой</h2>
+    <ol class="sheet" data-i18n="sheet">
       <li>Горячий кран — всегда на метке. Температуру крутишь только холодным.</li>
       <li>Напор скакнул (кто-то открыл или закрыл кран) — глянь на часы. Через <b>номер своей кабинки × <span id="sheetSlot">2,5</span> с</b> мыргни: на полсекунды закрой горячий. Вошёл сам — отсчёт начинай через <b><span id="sheetD">1</span> с</b> после того, как открыл кран.</li>
       <li>Сосчитай мырги — это сколько вас. Поставь холодный на деление для этого числа (табличка у крана).</li>
       <li>Дальше подкручивай холодный понемногу, раз в секунду-две.</li>
       <li>Напор скакнул посреди переклички — она не считается. В конце все разом мыргните и начните заново, отсчитывая от этого мырга.</li>
     </ol>
-    <p class="caption">Нужны номера на кабинках и часы с секундной стрелкой: в уме 15 секунд отсчитывают с ошибкой ~10&nbsp;%, и тогда кабинки 5 и 6 сливаются в 13&nbsp;% перекличек; по часам — 0. Шаг — постоянная душевой: мырг + задержка напора + 1,5&nbsp;с запаса на реакцию. Табличка у крана — та же, что в эстафете.</p>
+    <p class="caption" data-i18n="capSheet">Нужны номера на кабинках и часы с секундной стрелкой: в уме 15 секунд отсчитывают с ошибкой ~10&nbsp;%, и тогда кабинки 5 и 6 сливаются в 13&nbsp;% перекличек; по часам — 0. Шаг — постоянная душевой: мырг + задержка напора + 1,5&nbsp;с запаса на реакцию. Табличка у крана — та же, что в эстафете.</p>
   </section>
 
   <section class="panel" aria-label="Выводы">
-    <h2>Что показала симуляция</h2>
-    <div class="findings">
+    <h2 data-i18n="hFind">Что показала симуляция</h2>
+    <div class="findings" data-i18n="findings">
       <div class="finding"><b>Наивные не сходятся</b><p>Крутить горячую раз в секунду при задержке 5&nbsp;с — это раскачка. С двумя и больше людьми соседи раскачивают друг друга, и к следующему событию никто не в зоне.</p></div>
       <div class="finding"><b>Можно и без сигналов</b><p>Горячая на метке, холодная понемногу (0,0015·ошибка, не больше 3&nbsp;% хода в секунду) со случайным интервалом: ~32&nbsp;с на событие, при N до 4 сходится всегда, при шести — в 73&nbsp;% событий. Окно коэффициента узкое и зависит от задержки воды: при L&nbsp;=&nbsp;8&nbsp;с уже 76&nbsp;% несошедшихся. Эстафета в 2–3 раза быстрее при быстром напоре; при P&nbsp;=&nbsp;3&nbsp;с выигрыш почти пропадает.</p></div>
       <div class="finding"><b>Договор: шпаргалка на стене</b><p>Номер кабинки = секунда ответа, поэтому мырги не сталкиваются и подсчёт точный: неверное N — 0&nbsp;%: двое и трое разом, скачки посреди переклички, неточная реакция ±0,8&nbsp;с (при сильном шуме — до 1,2&nbsp;%). Сигнал — сам скачок напора от крана, отсчёт по часам на стене. При быстром напоре 23–29&nbsp;с на событие (простой — 32, эстафета — 10–19), не боится шестерых; при L&nbsp;=&nbsp;12&nbsp;с тоже не успевает (46&nbsp;%). Цена — перекличка по всем шести кабинкам: при P&nbsp;≥&nbsp;2&nbsp;с она медленнее простого (36–52&nbsp;с) и успевает, только если люди приходят не чаще раза в 90&nbsp;с.</p></div>
@@ -278,7 +280,7 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
       <div class="finding"><b>Двойную ступеньку видно</b><p>Если двойное синхро всё же не распознано, старожил отличает двойную ступеньку напора по высоте и подаёт стоп-сигнал. Ложных стоп-сигналов нет, но ожидание перед ним дорогое — поэтому это теперь запасной путь.</p></div>
       <div class="finding"><b>Без подстройки темпа мырги сливаются</b><p>Задержка напора 4&nbsp;с и выключенный адаптивный темп (мырг 0,5&nbsp;с): короткие мырги сглаживаются, и счётчик почти ничего не слышит. До 3&nbsp;с мырга в 0,5&nbsp;с хватает. Новенький берёт строку таблички для неверного N и исправляет это уже поправками.</p></div>
     </div>
-    <details>
+    <details data-i18n="model">
       <summary>Модель</summary>
       <p>Каждый кран — проводимость <code>g</code>. Горячая магистраль: давление <code>p<sub>h</sub> = 1 / (1 + 2·Σg<sub>h</sub>)</code>, холодная: <code>p<sub>c</sub> = 1 / (1 + 0,35·Σg<sub>c</sub>)</code>. Горячая связь сильная, холодная слабая. Расход <code>q = g·p</code>, температура смеси <code>(q<sub>h</sub>·60 + q<sub>c</sub>·15) / (q<sub>h</sub> + q<sub>c</sub>)</code>, у лейки она появляется через L секунд. Пока вода не дошла, у новенького течёт 22&nbsp;°C из трубы. Напор ощущается с чистой задержкой 0,4·P и сглаживанием τ&nbsp;=&nbsp;0,2·P.</p>
       <p><b>Наивно:</b> раз в секунду горячая += 0,02·ошибка; если горячая упёрлась в край, крутят холодную. <b>Терпеливо:</b> горячая на метке, холодная шагом не больше 0,08, пауза L+1&nbsp;с. <b>Эстафета:</b> горячая на метке; при событии перекличка мыргами (горячая закрыта на T; №k мыргает, как только услышал конец мырга №k−1, и только №1 выжидает после синхро паузу T), прыжок холодной на значение из личной таблички для нового N, затем каждые L+1&nbsp;с поправка на 80% ошибки по наклону своего крана.</p>
@@ -288,25 +290,121 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
   </section>
 </div>
 
+<script>
+/* Language: ?lang=en|ru, else the browser language (Russian → ru, anything else → en).
+   Static text: elements with data-i18n get their innerHTML from EN; ids inside are kept. */
+(function () {
+  var q = new URLSearchParams(location.search).get('lang');
+  var lang = q === 'en' || q === 'ru' ? q : (/^(ru|uk|be)\b/i.test(navigator.language || '') ? 'ru' : 'en');
+  window.LANG = lang;
+  window.L = function (ru, en) { return lang === 'en' ? en : ru; };
+  document.documentElement.lang = lang;
+  var nav = document.getElementById('langNav');
+  ['en', 'ru'].forEach(function (l) {
+    var a = document.createElement('a'); a.href = '?lang=' + l; a.textContent = l.toUpperCase();
+    if (l === lang) a.setAttribute('aria-current', 'true');
+    nav.appendChild(a);
+  });
+  if (lang !== 'en') return;
+  document.title = 'Shower protocol';
+  var EN = {
+    h1: 'Shower protocol',
+    lead: 'Several showers on one hot-water pipe. People come and go, and the temperature reaches the shower head after <span class="mono" id="leadL">5</span>&nbsp;s. The simulation compares how quickly everyone gets back into their comfort zone (±0.5&nbsp;°C) under five ways of turning the taps.',
+    adaptive: 'Blink length T adapts to pressure',
+    early: 'Regulars jump right away',
+    pair: 'The last two arrive almost together',
+    sD: 'Second one after',
+    reseed: 'Another case',
+    sN: 'People arriving', sL: 'Temperature delay', sP: 'Pressure delay', sTol: 'Personal table error',
+    hT: 'Temperature at the shower head, °C',
+    capT: 'Dashed: each person’s target. Shaded bands: roll calls. Bars under the axis: how many seconds it took until everyone was back within ±0.5&nbsp;°C.',
+    hP: 'Pressure in the hot pipe', inPipe: 'in the pipe', felt: 'as felt',
+    hTbl: 'Seconds to converge after each event',
+    capTbl: 'Same parameters, all five strategies. “Didn’t converge”: someone was still outside the zone when the next event came. Discomfort: time outside ±0.5&nbsp;°C summed over people, in degree-seconds; lower is better.',
+    hPair: 'If two arrive almost together',
+    pairIntro: 'You can only open the hot tap and feel the pressure together: there is no listening without opening your tap. So both are already under the water by the time it turns out there are two of them. The protocol adds five rules:',
+    rules:
+      '<li><b>Listen, then blink.</b> After opening the hot tap, wait a random pause (up to <span class="mono" id="cwOut">3</span>&nbsp;s) and blink a sync only if you heard nothing during it. Heard someone else’s sync? Join the tail: blink after the last regular, after a silence, and take the next number. The tail window is kept open only if the pressure shows more newcomers than syncs.</li>' +
+      '<li><b>Double sync.</b> If two people blinked a sync almost at once, the spike before answer No.&nbsp;1 has twice the area of any regular’s answer (same tap, same pressure). Everyone hears it: N = answers + 2, and both newcomers share one number for now. Three times or more means that many syncs (pressure depends on the number of open taps non-linearly, so the spike is compared with what k simultaneous blinks would give). Right after the roll call they draw lots: each waits a random pause and blinks if they haven’t heard the other. Whoever blinks first keeps the number, the others take the next; if they blinked together, repeat with twice the pause. The tail and each relay slot are counted by area too, and two people who joined the tail split their number by the same lots.</li>' +
+      '<li><b>Jam signal (fallback).</b> A regular felt two pressure steps but heard one sync. They wait: maybe the second person just postponed their roll call. If the missing sync never comes, the syncs merged, and the regular closes the hot tap for a long time (5T). The last roll call doesn’t count: its newcomers forget their numbers and try again with twice the pause, and the regular also waits twice as long after each jam.</li>' +
+      '<li><b>Recount.</b> In an empty shower room there is nobody to send a jam: both think “I’m alone”. The jump check catches this. If after the table jump the temperature is off by more than 2&nbsp;°C, N is wrong: blink a sync again, without a pressure step, everyone answers, and everyone takes N from the blink count.</li>' +
+      '<li><b>A step in the middle of a roll call spoils it.</b> Someone leaving waits for silence. Someone arriving can’t wait: they have to open the tap to listen. So whoever started the roll call compares the pressure before the sync and after the roll call ends, and if it moved, repeats the roll call right away.</li>',
+    pairStatsTitle: '30 random runs with the current settings',
+    hSheet: 'The “wall sheet” rules — to hang in the shower room',
+    sheet:
+      '<li>Hot tap always on the mark. Adjust the temperature with the cold tap only.</li>' +
+      '<li>The pressure jumped (someone opened or closed a tap): look at the clock. After <b>your stall number × <span id="sheetSlot">2.5</span> s</b>, blink: close the hot tap for half a second. If you just came in yourself, start counting <b><span id="sheetD">1</span> s</b> after opening your tap.</li>' +
+      '<li>Count the blinks: that’s how many of you there are. Set the cold tap to the mark for that number (the table by the tap).</li>' +
+      '<li>After that, nudge the cold tap a little, every second or two.</li>' +
+      '<li>If the pressure jumps in the middle of a roll call, it doesn’t count. At the end everyone blinks together and starts over, counting from that blink.</li>',
+    capSheet: 'You need numbered stalls and a clock with a second hand: counting 15 seconds in your head is ~10&nbsp;% off, and then stalls 5 and 6 merge in 13&nbsp;% of roll calls; with a clock, 0. The step is a constant of the shower room: blink + pressure delay + 1.5&nbsp;s margin for reaction time. The table by the tap is the same as in the relay.',
+    hFind: 'What the simulation showed',
+    findings:
+      '<div class="finding"><b>Naive doesn’t converge</b><p>Turning the hot tap every second with a 5&nbsp;s delay is an oscillator. With two or more people the neighbours rock each other, and by the next event nobody is in the zone.</p></div>' +
+      '<div class="finding"><b>You can do without signals</b><p>Hot tap on the mark, cold tap nudged a little (0.0015·error, at most 3&nbsp;% of its range per second) at random intervals: ~32&nbsp;s per event, always converges with up to 4 people, with six in 73&nbsp;% of events. The safe gain window is narrow and depends on the water delay: at L&nbsp;=&nbsp;8&nbsp;s already 76&nbsp;% don’t converge. The relay is 2–3× faster with fast pressure; at P&nbsp;=&nbsp;3&nbsp;s the gain almost vanishes.</p></div>' +
+      '<div class="finding"><b>Wall sheet</b><p>Stall number = answer second, so blinks never collide and the count is exact: wrong N is 0&nbsp;% with two or three arrivals at once, jumps mid-roll-call, sloppy reactions of ±0.8&nbsp;s (with heavy noise up to 1.2&nbsp;%). The signal is the pressure jump from the tap itself, timed by a clock on the wall. With fast pressure 23–29&nbsp;s per event (simple: 32, relay: 10–19), and six people are no problem; at L&nbsp;=&nbsp;12&nbsp;s it doesn’t keep up either (46&nbsp;%). The price is a roll call over all six stalls: at P&nbsp;≥&nbsp;2&nbsp;s it is slower than simple (36–52&nbsp;s) and keeps up only if people arrive at most once every 90&nbsp;s.</p></div>' +
+      '<div class="finding"><b>Patience works, slowly</b><p>Hot tap on the mark, small cold-tap steps with a pause: everything converges, but in about 35&nbsp;s per event.</p></div>' +
+      '<div class="finding"><b>Relay: 10–20&nbsp;s with fast pressure</b><p>A jump ahead to the table setting plus one Newton correction. The time is limited mostly by the water delay and the table error; with slow pressure (P&nbsp;=&nbsp;3&nbsp;s), 16–28&nbsp;s.</p></div>' +
+      '<div class="finding"><b>Regulars don’t need the roll call</b><p>They already know the new N: it was N, the pressure dropped, so now it’s N+1. Jumping right away instead of after the roll call lowers discomfort, the more so the slower the pressure. Only the newcomer needs the roll call.</p></div>' +
+      '<div class="finding"><b>A blink is a temperature shock too</b><p>With slow pressure, blinks are long, and L seconds later they reach the shower heads as hot and cold pulses. So a blink has to be short: T&nbsp;=&nbsp;max(0.5&nbsp;s, 0.2·P). With the old rule T&nbsp;=&nbsp;0.8·P at a 3&nbsp;s pressure delay the relay lost to patient; with a short blink it wins.</p></div>' +
+      '<div class="finding"><b>Slow pressure: works up to ~3&nbsp;s</b><p>With a short blink the relay converges in every run up to a 3&nbsp;s pressure delay for any N up to 6 and beats patient. From 4–5&nbsp;s with four or more people the roll call doesn’t always fit into the 45&nbsp;s between events.</p></div>' +
+      '<div class="finding"><b>The pause is needed only after the sync</b><p>Before, everyone in the relay waited an extra pause T after hearing the previous blink. It is unnecessary: blinks are distinguishable without it. Without it, at P&nbsp;=&nbsp;4&nbsp;s and six people “didn’t converge” drops from 19 to 8&nbsp;%, for a pair from 77 to 38&nbsp;%. The pause stays only before answer No.&nbsp;1: otherwise the tail of a double sync was taken for someone else’s pressure step. The price: slightly worse with heavy perception noise.</p></div>' +
+      '<div class="finding"><b>Better to accept a merge than cancel it</b><p>When two arrive together, their syncs merge almost half the time. Before, a regular waited, sent a jam, and the roll call was repeated; at P&nbsp;=&nbsp;3&nbsp;s with six people this didn’t finish before the next event in 43&nbsp;% of runs. Now the double sync is recognised by the area of the spike, N is right at once, and duplicate numbers are split by a short draw: wrong N 0–1&nbsp;% for any P up to 4&nbsp;s.</p></div>' +
+      '<div class="finding"><b>Three at once, too</b><p>Three almost simultaneous arrivals broke the count: a triple sync read as double, two in the tail gave one blink, and two with the same number were undercounted in every roll call. Wrong N was 29–69&nbsp;%. With counting by area everywhere, from the sync to every slot, it is 0–3&nbsp;% for P up to 2&nbsp;s and up to 7&nbsp;% at P&nbsp;=&nbsp;3&nbsp;s.</p></div>' +
+      '<div class="finding"><b>A double step is visible</b><p>If a double sync still goes unrecognised, a regular tells a double pressure step by its height and sends a jam. There are no false jams, but the wait before one is costly, so this is now the fallback.</p></div>' +
+      '<div class="finding"><b>Without adaptive tempo, blinks blur</b><p>Pressure delay 4&nbsp;s with adaptive tempo off (0.5&nbsp;s blinks): short blinks get smoothed out and the counter hears almost nothing. Up to 3&nbsp;s a 0.5&nbsp;s blink is enough. The newcomer takes the table row for the wrong N and fixes it with corrections later.</p></div>',
+    model:
+      '<summary>Model</summary>' +
+      '<p>Each tap is a conductance <code>g</code>. Hot line pressure <code>p<sub>h</sub> = 1 / (1 + 2·Σg<sub>h</sub>)</code>, cold: <code>p<sub>c</sub> = 1 / (1 + 0.35·Σg<sub>c</sub>)</code>. The hot coupling is strong, the cold one weak. Flow <code>q = g·p</code>, mixed temperature <code>(q<sub>h</sub>·60 + q<sub>c</sub>·15) / (q<sub>h</sub> + q<sub>c</sub>)</code>, which reaches the shower head L seconds later. Until the water arrives, a newcomer gets 22&nbsp;°C from the pipe. Pressure is felt with a pure delay of 0.4·P and smoothing τ&nbsp;=&nbsp;0.2·P.</p>' +
+      '<p><b>Naive:</b> every second hot += 0.02·error; if the hot tap hits its limit, they turn the cold one. <b>Patient:</b> hot tap on the mark, cold-tap steps of at most 0.08, a pause of L+1&nbsp;s. <b>Relay:</b> hot tap on the mark; on an event, a roll call by blinks (hot tap closed for T; No.&nbsp;k blinks as soon as it hears the end of No.&nbsp;k−1’s blink, and only No.&nbsp;1 waits a pause T after the sync), a jump of the cold tap to the personal table value for the new N, then every L+1&nbsp;s a correction of 80% of the error using the slope of one’s own tap.</p>' +
+      '<p>Blinks in the felt pressure are counted honestly: crossings of half of one tap’s amplitude. If the count differs from the real number, the newcomer gets the wrong N. Scenario: people arrive every 45&nbsp;s, and after the last arrival the second person leaves.</p>' +
+      '<p><b>Assumptions.</b> A person knows what one pressure step feels like with n people (as with the personal table). In three more places the model peeks at the true state: regulars jumping early take N from the number present, the jump check is postponed while someone has no number, and the threshold for counting blinks comes from the true number of people.</p>'
+  };
+  document.querySelectorAll('[data-i18n]').forEach(function (el) {
+    var v = EN[el.getAttribute('data-i18n')]; if (v != null) el.innerHTML = v;
+  });
+  var ATTR = [
+    ['.controls', 'aria-label', 'Parameters'], ['.seg', 'aria-label', 'Strategy'],
+    ['#reseed', 'title', 'Other random pauses and table errors'], ['#speed', 'title', 'Playback speed'],
+    ['#scrub', 'aria-label', 'Time'], ['#pairPanel', 'aria-label', 'Two at once']
+  ];
+  ATTR.forEach(function (a) { var el = document.querySelector(a[0]); if (el) el.setAttribute(a[1], a[2]); });
+  var STR = { naive: 'Naive', patient: 'Patient', simple: 'Simple', sheet: 'Wall sheet', relay: 'Relay' };
+  Object.keys(STR).forEach(function (k) { document.getElementById('st-' + k).textContent = STR[k]; });
+  document.getElementById('play').textContent = '▶ Run';
+  document.querySelectorAll('section.panel[aria-label]').forEach(function (el) {
+    var m = { 'Кабинки': 'Stalls', 'Температура': 'Temperature', 'Напор': 'Pressure', 'Сравнение': 'Comparison', 'Шпаргалка': 'Wall sheet', 'Выводы': 'Findings' };
+    var v = m[el.getAttribute('aria-label')]; if (v) el.setAttribute('aria-label', v);
+  });
+})();
+</script>
 <script src="sim.js"></script>
 <script>
 (function () {
   'use strict';
   const S = window.ShowerSim;
-  const NAMES = ['Аня', 'Боря', 'Вика', 'Гоша', 'Даша', 'Егор'];
-  const NOTES = {
+  const NAMES = L(['Аня', 'Боря', 'Вика', 'Гоша', 'Даша', 'Егор'], ['Ann', 'Bob', 'Cat', 'Dan', 'Eve', 'Finn']);
+  const SEC = L('с', 's');
+  const STRAT = L({ naive: 'Наивно', patient: 'Терпеливо', simple: 'Просто', sheet: 'Договор', relay: 'Эстафета' }, { naive: 'Naive', patient: 'Patient', simple: 'Simple', sheet: 'Wall sheet', relay: 'Relay' });
+  const NOTES = L({
     naive: 'Каждый раз в секунду крутит горячую на величину ошибки и не ждёт, пока вода дойдёт. Если горячая упёрлась в край, крутит холодную.',
     patient: 'Горячая на общей метке. Холодную крутят маленьким шагом, потом ждут L+1 секунд и смотрят снова.',
     simple: 'Горячая на метке. Раз в 1 с (±30 %, случайно) каждый сдвигает холодную на 0,0015·ошибку, не больше 3 % хода крана. Ни сигналов, ни N.',
     sheet: 'Шпаргалка на стене: почувствовал скачок напора (в том числе от своего крана) — мыргни на своей секунде: номер кабинки × шаг. Число мыргов = N, холодная на деление из таблички, дальше — как «Просто».',
     relay: 'Горячая на метке. При событии перекличка мыргами, затем все прыгают холодной на своё деление из таблички для нового N и делают одну-две точные поправки.',
-  };
+  }, {
+    naive: 'Every second everyone turns the hot tap by the size of the error, without waiting for the water to arrive. If the hot tap hits its limit, they turn the cold one.',
+    patient: 'Hot tap on a shared mark. The cold tap is turned in small steps, then they wait L+1 seconds and look again.',
+    simple: 'Hot tap on the mark. Once a second (±30 %, random) everyone moves the cold tap by 0.0015·error, at most 3 % of its range. No signals, no N.',
+    sheet: 'Rules on the wall: felt a pressure jump (including from your own tap)? Blink at your second: stall number × step. Number of blinks = N, cold tap to the table mark, then as in “Simple”.',
+    relay: 'Hot tap on the mark. On an event, a roll call by blinks, then everyone jumps the cold tap to their table mark for the new N and makes one or two fine corrections.',
+  });
   const st = { strategy: 'relay', N: 3, L: 5, P: 0.5, tol: 6, adaptive: true, early: true, pair: false, dGap: 1, seed: 7, t: null, playing: false, speed: 5 };
   let runs = {}, cur = null, hoverT = null;
 
   const $ = (id) => document.getElementById(id);
   const css = () => { const c = getComputedStyle(document.documentElement); const g = (n) => c.getPropertyValue(n).trim(); return { fg: g('--fg'), muted: g('--muted'), line: g('--line'), grid: g('--grid'), accent: g('--accent'), roll: g('--roll'), surface: g('--surface'), cold: g('--cold'), hot: g('--hot'), mid: g('--mid'), crit: g('--critical'), s: [1,2,3,4,5,6].map(i => g('--s' + i)) }; };
-  const fmt = (x, d = 1) => x.toFixed(d).replace('.', ',');
+  const fmt = (x, d = 1) => x.toFixed(d).replace('.', L(',', '.'));
 
   function recompute() {
     const base = { N: st.N, L: st.L, P: st.P, adaptive: st.adaptive, earlyJump: st.early, tableErr: st.tol / 100, pairGap: st.pair ? st.dGap : null, seed: st.seed };
@@ -323,11 +421,11 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
     const box = $('stalls'); box.innerHTML = '';
     cur.agents.forEach((a, i) => {
       const d = document.createElement('div'); d.className = 'stall'; d.id = 'stall' + i;
-      d.innerHTML = `<div class="stall-head"><span class="who"><i class="dot" style="background:var(--s${i + 1})"></i>${NAMES[i]}</span><span class="num">цель ${fmt(a.target)}°</span></div>
+      d.innerHTML = `<div class="stall-head"><span class="who"><i class="dot" style="background:var(--s${i + 1})"></i>${NAMES[i]}</span><span class="num">${L('цель', 'target')} ${fmt(a.target)}°</span></div>
         <div class="belief"></div>
         <svg viewBox="0 0 120 86" aria-hidden="true"><path d="M60 4 V16" stroke="var(--muted)" stroke-width="3" fill="none"/><path d="M40 16 H80 L74 24 H46 Z" fill="var(--muted)"/><g class="stream"></g></svg>
         <div class="stall-head"><span class="temp">—</span><span class="chip">—</span></div>
-        <div class="valves"><span>гор</span><div class="meter"><i class="mh" style="background:var(--hot)"></i></div><span>хол</span><div class="meter"><i class="mc" style="background:var(--cold)"></i></div></div>`;
+        <div class="valves"><span>${L('гор', 'hot')}</span><div class="meter"><i class="mh" style="background:var(--hot)"></i></div><span>${L('хол', 'cold')}</span><div class="meter"><i class="mc" style="background:var(--cold)"></i></div></div>`;
       box.appendChild(d);
     });
   }
@@ -347,23 +445,23 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
       const tEl = el.querySelector('.temp'), chip = el.querySelector('.chip'), g = el.querySelector('.stream'), bl = el.querySelector('.belief');
       if (st.strategy === 'relay' && present) {
         const num = a.num[k], b = a.belief[k], nt = cur.nTrue[k];
-        if (!num) { bl.textContent = 'слушает, номера нет'; bl.className = 'belief'; }
-        else { bl.textContent = `№${num} · думает N=${b}` + (b !== nt ? ` (на деле ${nt})` : ''); bl.className = 'belief' + (b !== nt ? ' bad' : ''); }
+        if (!num) { bl.textContent = L('слушает, номера нет', 'listening, no number yet'); bl.className = 'belief'; }
+        else { bl.textContent = L(`№${num} · думает N=${b}`, `No.${num} · thinks N=${b}`) + (b !== nt ? L(` (на деле ${nt})`, ` (really ${nt})`) : ''); bl.className = 'belief' + (b !== nt ? ' bad' : ''); }
       } else if (st.strategy === 'sheet' && present) {
         const b = a.belief[k], nt = cur.nTrue[k];
-        bl.textContent = `каб. ${a.stall}` + (b ? ` · думает N=${b}` + (b !== nt ? ` (на деле ${nt})` : '') : ' · ждёт перекличку');
+        bl.textContent = L(`каб. ${a.stall}`, `stall ${a.stall}`) + (b ? L(` · думает N=${b}`, ` · thinks N=${b}`) + (b !== nt ? L(` (на деле ${nt})`, ` (really ${nt})`) : '') : L(' · ждёт перекличку', ' · waiting for roll call'));
         bl.className = 'belief' + (b && b !== nt ? ' bad' : '');
       } else { bl.textContent = st.strategy === 'relay' ? '' : ' '; bl.className = 'belief'; }
       if (!present) {
         const arrived = a.felt.slice(0, k).some(v => v != null);
-        tEl.innerHTML = '—'; chip.className = 'chip'; chip.textContent = arrived ? 'ушёл' : 'ещё не пришёл';
+        tEl.innerHTML = '—'; chip.className = 'chip'; chip.textContent = arrived ? L('ушёл', 'left') : L('ещё не пришёл', 'not here yet');
         g.innerHTML = ''; el.querySelector('.mh').style.width = '0'; el.querySelector('.mc').style.width = '0';
         return;
       }
       const e = T - a.target;
       tEl.innerHTML = `${fmt(T)}<small>°C</small>`;
-      if (Math.abs(e) <= cur.params.band) { chip.className = 'chip ok'; chip.textContent = 'в зоне'; }
-      else { chip.className = 'chip bad'; chip.textContent = e > 0 ? `горячо +${fmt(e)}` : `холодно ${fmt(e)}`; }
+      if (Math.abs(e) <= cur.params.band) { chip.className = 'chip ok'; chip.textContent = L('в зоне', 'in zone'); }
+      else { chip.className = 'chip bad'; chip.textContent = e > 0 ? L(`горячо +${fmt(e)}`, `hot +${fmt(e)}`) : L(`холодно ${fmt(e)}`, `cold ${fmt(e)}`); }
       const flow = Math.min(1, ((a.gh[k] || 0) * 0.5 + (a.gc[k] || 0) * 0.9) * 1.6);
       const col = mixColor(T, c);
       let s = '';
@@ -375,16 +473,16 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
   }
 
   function buildLegend() {
-    const L = $('legT'); L.innerHTML = '';
-    cur.agents.forEach((a, i) => { L.insertAdjacentHTML('beforeend', `<span><i class="ln" style="background:var(--s${i + 1})"></i>${NAMES[i]}</span>`); });
-    L.insertAdjacentHTML('beforeend', `<span><i class="ln dash"></i>цель</span>`);
+    const leg = $('legT'); leg.innerHTML = '';
+    cur.agents.forEach((a, i) => { leg.insertAdjacentHTML('beforeend', `<span><i class="ln" style="background:var(--s${i + 1})"></i>${NAMES[i]}</span>`); });
+    leg.insertAdjacentHTML('beforeend', `<span><i class="ln dash"></i>${L('цель', 'target')}</span>`);
   }
 
   // ---------- table ----------
-  function evName(ev) { return (ev.kind === 'entry' ? 'Пришла/пришёл ' : 'Ушла/ушёл ').replace(/.*/, ev.kind === 'entry' ? '+ ' : '− ') + NAMES[ev.who]; }
+  function evName(ev) { return (ev.kind === 'entry' ? '+ ' : '− ') + NAMES[ev.who]; }
   function buildTable() {
-    const ss = ['naive', 'patient', 'simple', 'sheet', 'relay'], hd = { naive: 'Наивно', patient: 'Терпеливо', simple: 'Просто', sheet: 'Договор', relay: 'Эстафета' };
-    let h = '<thead><tr><th>Событие</th>' + ss.map(s => `<th>${hd[s]}${s === st.strategy ? ' ·' : ''}</th>`).join('') + '</tr></thead><tbody>';
+    const ss = ['naive', 'patient', 'simple', 'sheet', 'relay'], hd = STRAT;
+    let h = '<thead><tr><th>' + L('Событие', 'Event') + '</th>' + ss.map(s => `<th>${hd[s]}${s === st.strategy ? ' ·' : ''}</th>`).join('') + '</tr></thead><tbody>';
     const n = runs.relay.events.length;
     for (let i = 0; i < n; i++) {
       const vals = ss.map(s => runs[s].events[i] ? runs[s].events[i].settle : null);
@@ -393,20 +491,20 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
         const ev = runs[s].events[i]; const v = vals[j];
         let badge = '';
         if (s === 'relay' && ev) {
-          if (ev.collided && ev.mergeAccepted) badge += `<span class="badge" title="Синхро слились; двойное синхро узнали по напору, номера развёл жребий">двойное синхро</span>`;
-          else if (ev.collided) badge += `<span class="badge bad" title="Синхро слились с чужим">коллизия</span>`;
-          if (ev.jammed) badge += `<span class="badge" title="Старожил подал стоп-сигнал, новенькие пробуют заново">стоп-сигнал ×${ev.jammed}</span>`;
-          if (ev.recount) badge += `<span class="badge" title="Промах после прыжка больше 2 °C, перекличка заново">пересчёт</span>`;
-          if (ev.deferred && !ev.collided) badge += `<span class="badge" title="Услышал чужое синхро и ждал">ждал</span>`;
-          if (ev.joined) badge += `<span class="badge" title="Услышал чужое синхро и мыргнул в хвосте той же переклички">в хвост</span>`;
+          if (ev.collided && ev.mergeAccepted) badge += `<span class="badge" title="${L('Синхро слились; двойное синхро узнали по напору, номера развёл жребий', 'Syncs merged; the double sync was recognised from pressure, lots split the numbers')}">${L('двойное синхро', 'double sync')}</span>`;
+          else if (ev.collided) badge += `<span class="badge bad" title="${L('Синхро слились с чужим', 'Sync merged with someone else’s')}">${L('коллизия', 'collision')}</span>`;
+          if (ev.jammed) badge += `<span class="badge" title="${L('Старожил подал стоп-сигнал, новенькие пробуют заново', 'A regular sent a jam, the newcomers try again')}">${L('стоп-сигнал', 'jam')} ×${ev.jammed}</span>`;
+          if (ev.recount) badge += `<span class="badge" title="${L('Промах после прыжка больше 2 °C, перекличка заново', 'Off by more than 2 °C after the jump, roll call again')}">${L('пересчёт', 'recount')}</span>`;
+          if (ev.deferred && !ev.collided) badge += `<span class="badge" title="${L('Услышал чужое синхро и ждал', 'Heard someone else’s sync and waited')}">${L('ждал', 'waited')}</span>`;
+          if (ev.joined) badge += `<span class="badge" title="${L('Услышал чужое синхро и мыргнул в хвосте той же переклички', 'Heard someone else’s sync and blinked at the tail of the same roll call')}">${L('в хвост', 'joined tail')}</span>`;
         }
-        if (ev && ev.mergedWithNext) return `<td class="fail">вместе со следующим${badge}</td>`;
-        if (v == null) return `<td class="fail">не сошлось${badge}</td>`;
-        return `<td class="mono${v === best ? ' best' : ''}">${fmt(v)} с${badge}</td>`;
+        if (ev && ev.mergedWithNext) return `<td class="fail">${L('вместе со следующим', 'with the next')}${badge}</td>`;
+        if (v == null) return `<td class="fail">${L('не сошлось', 'didn’t converge')}${badge}</td>`;
+        return `<td class="mono${v === best ? ' best' : ''}">${fmt(v)} ${SEC}${badge}</td>`;
       }).join('') + '</tr>';
     }
     const ds = ss.map(s => runs[s].discomfort), bd = Math.min(...ds);
-    h += '<tr><td>Дискомфорт, °C·с</td>' + ds.map(d => `<td class="mono${d === bd ? ' best' : ''}">${Math.round(d)}</td>`).join('') + '</tr></tbody>';
+    h += '<tr><td>' + L('Дискомфорт, °C·с', 'Discomfort, °C·s') + '</td>' + ds.map(d => `<td class="mono${d === bd ? ' best' : ''}">${Math.round(d)}</td>`).join('') + '</tr></tbody>';
     $('tbl').innerHTML = h;
   }
 
@@ -416,7 +514,7 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
     $('cwOut').textContent = fmt(cur.cw0, 0);
     const box = $('pairStatsBox');
     if (!st.pair) { box.hidden = true; return; }
-    box.hidden = false; $('pairStats').innerHTML = '<span class="caption">считаю…</span>';
+    box.hidden = false; $('pairStats').innerHTML = '<span class="caption">' + L('считаю…', 'computing…') + '</span>';
     clearTimeout(statsTimer);
     statsTimer = setTimeout(() => {
       const R = 30; let col = 0, acc = 0, jam = 0, rec = 0, silent = 0, wrong = 0, nc = 0; const set = [];
@@ -433,14 +531,15 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
         if (last.settle == null) nc++; else set.push(last.settle);
       }
       set.sort((a, b) => a - b);
-      const med = set.length ? fmt(set[set.length >> 1], 0) + ' с' : '—';
+      const med = set.length ? fmt(set[set.length >> 1], 0) + ' ' + SEC : '—';
       const items = [
-        [col, 'синхро слились (коллизия)'], [acc, 'узнано двойное синхро'], [jam, 'поймано стоп-сигналом'], [rec, 'было пересчётов'],
-        [wrong, 'кто-то знает неверное N к плановому уходу'], [med, 'медиана: пара сошлась за'], [nc, 'пара не сошлась за 45 с'],
+        [col, L('синхро слились (коллизия)', 'syncs merged (collision)')], [acc, L('узнано двойное синхро', 'double sync recognised')], [jam, L('поймано стоп-сигналом', 'caught by a jam')], [rec, L('было пересчётов', 'had a recount')],
+        [wrong, L('кто-то знает неверное N к плановому уходу', 'someone has the wrong N at the planned departure')], [med, L('медиана: пара сошлась за', 'median: the pair converged in')], [nc, L('пара не сошлась за 45 с', 'the pair didn’t converge within 45 s')],
       ];
       $('pairStats').innerHTML = items.map(([v, l]) => `<div class="stat"><b>${typeof v === 'number' ? v + '<small style="font-size:13px;color:var(--muted)"> / ' + R + '</small>' : v}</b><span>${l}</span></div>`).join('');
-      $('pairStatsNote').textContent = (st.N === 2 ? 'Двое в пустой душевой: подать стоп-сигнал некому, коллизию ловит только пересчёт после промаха. ' : 'Пока под душем есть старожил, двойное синхро слышно по сравнению с его ответом; не расслышали — ловит стоп-сигнал. ') +
-        `Прогоны «Эстафеты»: второй приходит через ${fmt(st.dGap, st.dGap % 1 ? 1 : 0)} с, задержка напора ${fmt(st.P, 2).replace(/,?0+$/, '') || '0'} с.`;
+      $('pairStatsNote').textContent = (st.N === 2 ? L('Двое в пустой душевой: подать стоп-сигнал некому, коллизию ловит только пересчёт после промаха. ', 'Two in an empty shower room: nobody can send a jam, so only the recount after a miss catches the collision. ') : L('Пока под душем есть старожил, двойное синхро слышно по сравнению с его ответом; не расслышали — ловит стоп-сигнал. ', 'While a regular is in the shower, a double sync is heard by comparing with their answer; if missed, a jam catches it. ')) +
+        L(`Прогоны «Эстафеты»: второй приходит через ${fmt(st.dGap, st.dGap % 1 ? 1 : 0)} с, задержка напора ${fmt(st.P, 2).replace(/,?0+$/, '') || '0'} с.`,
+          `Relay runs: the second one arrives ${fmt(st.dGap, st.dGap % 1 ? 1 : 0)} s later, pressure delay ${fmt(st.P, 2).replace(/[.,]?0+$/, '') || '0'} s.`);
     }, 120);
   }
 
@@ -460,7 +559,7 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
     ctx.fillStyle = c.muted; ctx.font = '11px ' + getComputedStyle(document.body).getPropertyValue('--f-mono'); ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     const stp = tickStep(cur.T_END);
     const minGap = 34; let lastX = -1e9;
-    for (let t = 0; t <= cur.T_END + 1e-6; t += stp) { const px = x(t); if (px - lastX < minGap) continue; lastX = px; ctx.fillText(t + ' с', px, h - M.b + 14); }
+    for (let t = 0; t <= cur.T_END + 1e-6; t += stp) { const px = x(t); if (px - lastX < minGap) continue; lastX = px; ctx.fillText(t + ' ' + SEC, px, h - M.b + 14); }
   }
   function drawRoll(ctx, h, x, c) {
     ctx.fillStyle = c.roll;
@@ -561,11 +660,11 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
       }
       if (r.end > st.t) continue;
       let txt, bad = false;
-      if (r.kind === 'jam') { txt = 'стоп'; bad = true; }
-      else if (r.kind === 'tie') { txt = r.tieClash ? 'жребий: разом' : 'жребий'; }
+      if (r.kind === 'jam') { txt = L('стоп', 'jam'); bad = true; }
+      else if (r.kind === 'tie') { txt = r.tieClash ? L('жребий: разом', 'lots: clash') : L('жребий', 'lots'); }
       else if (r.detected != null) {
         bad = r.detected !== r.expected || r.jammed || r.silentCollision;
-        txt = (r.kind === 'recount' ? 'пересчёт ' : '') + `${r.detected}/${r.expected}` + (r.silentCollision ? ' слились' : '');
+        txt = (r.kind === 'recount' ? L('пересчёт ', 'recount ') : '') + `${r.detected}/${r.expected}` + (r.silentCollision ? L(' слились', ' merged') : '');
       } else continue;
       ctx.font = '11px ' + getComputedStyle(document.body).getPropertyValue('--f-mono'); ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
       let lx = x(r.sync) + 3; if (lx < lastEnd + 6) lx = lastEnd + 6;
@@ -574,17 +673,19 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
     }
     drawPlayhead(ctx, h, x, c); drawCross(ctx, h, x, c);
     $('pCaption').textContent = st.strategy === 'relay'
-      ? `Темп T = ${fmt(cur.Tunit, 1)} с, шаг эстафеты ${fmt(cur.hop, 1)} с (после синхро на T больше). Каждый всплеск — мырг, засечки внизу окрашены по тому, кто мыргнул. Над событием: сколько мыргов различимо в ощущаемом напоре из скольких отправленных.`
+      ? L(`Темп T = ${fmt(cur.Tunit, 1)} с, шаг эстафеты ${fmt(cur.hop, 1)} с (после синхро на T больше). Каждый всплеск — мырг, засечки внизу окрашены по тому, кто мыргнул. Над событием: сколько мыргов различимо в ощущаемом напоре из скольких отправленных.`,
+          `Blink T = ${fmt(cur.Tunit, 1)} s, relay step ${fmt(cur.hop, 1)} s (T longer after the sync). Each spike is a blink; ticks at the bottom are coloured by who blinked. Above an event: how many blinks are distinguishable in the felt pressure out of how many were sent.`)
       : st.strategy === 'sheet'
-      ? `Шаг переклички ${fmt(cur.slotS, 1)} с: кабинка №k мыргает через k шагов после скачка напора. Над перекличкой — сколько мыргов насчитали из скольких людей.`
-      : 'В этой стратегии перекличек нет: видны только ступеньки от входов и выходов и подёргивания от того, как люди крутят горячую.';
+      ? L(`Шаг переклички ${fmt(cur.slotS, 1)} с: кабинка №k мыргает через k шагов после скачка напора. Над перекличкой — сколько мыргов насчитали из скольких людей.`,
+          `Roll-call step ${fmt(cur.slotS, 1)} s: stall k blinks k steps after the pressure jump. Above a roll call: how many blinks were counted out of how many people.`)
+      : L('В этой стратегии перекличек нет: видны только ступеньки от входов и выходов и подёргивания от того, как люди крутят горячую.', 'This strategy has no roll calls: you only see steps from arrivals and departures and the jitter from people turning the hot tap.');
   }
 
   function render() {
     const c = css();
     drawT(c); drawP(c); updateStalls(c);
     $('scrub').value = Math.round(st.t / cur.T_END * 1000);
-    $('clock').textContent = Math.round(st.t) + ' с';
+    $('clock').textContent = Math.round(st.t) + ' ' + SEC;
   }
 
   // ---------- hover ----------
@@ -595,9 +696,9 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
       const t = (px - M.l) / (r.width - M.l - M.r) * cur.T_END;
       if (t < 0 || t > cur.T_END) { leave(); return; }
       hoverT = t; const k = Math.round(t / cur.dt);
-      let rows = `<div class="mono" style="color:var(--muted)">${fmt(t, 1)} с</div>`;
+      let rows = `<div class="mono" style="color:var(--muted)">${fmt(t, 1)} ${SEC}</div>`;
       if (cv.id === 'cT') cur.agents.forEach((a, i) => { const v = a.felt[k]; if (v != null) rows += `<div class="r"><i class="dot" style="background:var(--s${i + 1})"></i>${NAMES[i]} ${fmt(v)}° <span style="color:var(--muted)">/ ${fmt(a.target)}°</span></div>`; });
-      else { const v = cur.phFelt[k], raw = cur.phRaw[k]; rows += `<div class="r">ощущается ${v == null ? '—' : fmt(v, 3)}</div><div class="r" style="color:var(--muted)">в трубе ${raw == null ? '—' : fmt(raw, 3)}</div>`; }
+      else { const v = cur.phFelt[k], raw = cur.phRaw[k]; rows += `<div class="r">${L('ощущается', 'felt')} ${v == null ? '—' : fmt(v, 3)}</div><div class="r" style="color:var(--muted)">${L('в трубе', 'in pipe')} ${raw == null ? '—' : fmt(raw, 3)}</div>`; }
       tip.innerHTML = rows; tip.hidden = false;
       const tw = tip.offsetWidth; let left = px + 12; if (left + tw > r.width) left = px - tw - 12;
       tip.style.left = Math.max(0, left) + 'px'; tip.style.top = '8px';
@@ -610,7 +711,7 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
   }
 
   // ---------- controls ----------
-  function syncPlay() { $('play').textContent = st.playing ? '❚❚ Пауза' : (st.t >= cur.T_END - 1e-6 ? '▶ Запустить' : '▶ Дальше'); }
+  function syncPlay() { $('play').textContent = st.playing ? L('❚❚ Пауза', '❚❚ Pause') : (st.t >= cur.T_END - 1e-6 ? L('▶ Запустить', '▶ Run') : L('▶ Дальше', '▶ Continue')); }
   function syncStrategy() {
     for (const s of ['naive', 'patient', 'simple', 'sheet', 'relay']) $('st-' + s).setAttribute('aria-pressed', String(s === st.strategy));
     $('stratNote').textContent = NOTES[st.strategy];
@@ -618,8 +719,8 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
   }
   document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => { st.strategy = b.dataset.s; cur = runs[st.strategy]; syncStrategy(); buildTable(); render(); }));
   const sliders = [
-    ['sN', 'N', 'vN', v => String(v)], ['sL', 'L', 'vL', v => fmt(v, v % 1 ? 1 : 0) + ' с'],
-    ['sP', 'P', 'vP', v => (v === 0 ? 'мгновенно' : fmt(v, v % 1 ? 2 : 0).replace(/,?0+$/, '') + ' с')], ['sTol', 'tol', 'vTol', v => '±' + v + ' %'],
+    ['sN', 'N', 'vN', v => String(v)], ['sL', 'L', 'vL', v => fmt(v, v % 1 ? 1 : 0) + ' ' + SEC],
+    ['sP', 'P', 'vP', v => (v === 0 ? L('мгновенно', 'instant') : fmt(v, v % 1 ? 2 : 0).replace(/[.,]?0+$/, '') + ' ' + SEC)], ['sTol', 'tol', 'vTol', v => '±' + v + ' %'],
   ];
   let pend = null;
   sliders.forEach(([id, key, out, f]) => {
@@ -636,7 +737,7 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
     if (st.pair && st.N < 2) { st.N = 2; $('sN').value = 2; $('vN').textContent = '2'; }
     recompute();
   });
-  $('sD').addEventListener('input', () => { st.dGap = parseFloat($('sD').value); $('vD').textContent = fmt(st.dGap, st.dGap % 1 ? 1 : 0) + ' с'; clearTimeout(pend); pend = setTimeout(recompute, 60); });
+  $('sD').addEventListener('input', () => { st.dGap = parseFloat($('sD').value); $('vD').textContent = fmt(st.dGap, st.dGap % 1 ? 1 : 0) + ' ' + SEC; clearTimeout(pend); pend = setTimeout(recompute, 60); });
   $('reseed').addEventListener('click', () => { st.seed += 1; $('vSeed').textContent = '#' + st.seed; recompute(); });
   $('early').addEventListener('change', e => { st.early = e.target.checked; recompute(); });
   $('scrub').addEventListener('input', e => { st.t = e.target.value / 1000 * cur.T_END; st.playing = false; syncPlay(); render(); });
@@ -660,6 +761,8 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
   try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => render()); } catch (e) {}
   new MutationObserver(() => render()).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
+  sliders.forEach(([id, key, out, f]) => { $(out).textContent = f(st[key]); });
+  $('vD').textContent = fmt(st.dGap, st.dGap % 1 ? 1 : 0) + ' ' + SEC;
   syncStrategy();
   recompute();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => render());
