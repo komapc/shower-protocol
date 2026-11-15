@@ -8,6 +8,8 @@ come and go, and the right tap setting depends on how many people are showering 
 This repo is a simulator and an interactive page that compare several ways out of that trap, from
 "just nudge the cold tap slowly" to a relay protocol that signals with pressure blinks and counts N.
 
+**Live demo:** https://komapc.github.io/shower-protocol/
+
 ![The interactive page: three stalls, temperature and pressure over time, convergence table](docs/demo.gif)
 
 The story of how it was built (with Claude, and why a dumb rule turned out to be almost as good) is in

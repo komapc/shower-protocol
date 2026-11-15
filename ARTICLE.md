@@ -40,8 +40,8 @@ Later I asked which existing protocol it most resembles, and the answer was Ethe
 collision detection, jam signal, and eventually binary exponential back-off. The roll call is
 essentially the "beeping model" from distributed computing.
 
-There is also an interactive page (`index.html`) with sliders and per-stall temperature and pressure
-graphs.
+There is also an interactive page with sliders and per-stall temperature and pressure graphs:
+https://komapc.github.io/shower-protocol/
 
 ## Step 2: it was buggy
 
