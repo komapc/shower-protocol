@@ -74,3 +74,7 @@ node tools/compare.js relay N=6,P=0.5,gap=45
 ```
 
 No dependencies, just node and a browser.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
