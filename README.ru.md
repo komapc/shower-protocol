@@ -31,6 +31,7 @@
 |---|---|
 | `sim.js` | симулятор (`ShowerSim.simulate(opts)`), работает и в браузере, и в node |
 | `index.html` | интерактивная визуализация: ползунки, графики температуры и напора, статистика |
+| `algorithms.html` | все пять стратегий по шагам, с временными диаграммами из `sim.js` ([на сайте](https://komapc.github.io/shower-protocol/algorithms.html?lang=ru)) |
 | `tools/strategies.js` | сравнение стратегий naive / patient / simple / relay (sheet — в `sweep.js sheet`) на нескольких конфигурациях |
 | `tools/compare.js` | итоговое сравнение simple / sheet / relay с проверкой N у каждого перед каждым событием |
 | `tools/sweep.js` | быстрые пакетные прогоны без GUI: стратегии, задержка, интервал, абляции, пары, темп, слияния (`merge`), трое разом (`triple`), шум (`noise`), простой без сигналов (`simple`), договор по шпаргалке (`sheet`) |

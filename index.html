@@ -59,6 +59,7 @@ h1 { font-family: var(--f-display); font-weight: 700; font-size: clamp(22px, 4vw
 h2 { font-family: var(--f-display); font-weight: 500; font-size: 15px; margin: 0; letter-spacing: 0.01em; }
 .lang { position: absolute; top: 0; right: 0; font-size: 13px; font-family: var(--f-mono); display: flex; gap: 8px; }
 .lang a { color: var(--muted); text-decoration: none; } .lang a[aria-current] { color: var(--fg); font-weight: 600; }
+.lead a { color: var(--accent); }
 .lead { margin: 0; color: var(--muted); max-width: 70ch; }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
 .mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
@@ -169,6 +170,7 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
   <header>
     <h1 data-i18n="h1">Душевой протокол</h1><nav class="lang" id="langNav"></nav>
     <p class="lead" data-i18n="lead">Несколько душевых на одной горячей трубе. Кто-то приходит, кто-то уходит, температура доходит до лейки через <span class="mono" id="leadL">5</span>&nbsp;с. Симуляция сравнивает, как быстро все снова оказываются в своей зоне комфорта (±0,5&nbsp;°C) при пяти способах крутить краны.</p>
+    <p class="lead" data-i18n="algLink"><a href="algorithms.html?lang=ru">Как устроена каждая стратегия, по шагам и с диаграммами →</a></p>
   </header>
 
   <section class="panel controls" aria-label="Параметры">
@@ -312,6 +314,7 @@ details code { font-family: var(--f-mono); font-size: 12.5px; }
   var EN = {
     h1: 'Shower protocol',
     lead: 'Several showers on one hot-water pipe. People come and go, and the temperature reaches the shower head after <span class="mono" id="leadL">5</span>&nbsp;s. The simulation compares how quickly everyone gets back into their comfort zone (±0.5&nbsp;°C) under five ways of turning the taps.',
+    algLink: '<a href="algorithms.html?lang=en">How each strategy works, step by step, with diagrams →</a>',
     adaptive: 'Blink length T adapts to pressure',
     early: 'Regulars jump right away',
     pair: 'The last two arrive almost together',
