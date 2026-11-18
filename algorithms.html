@@ -456,14 +456,22 @@ my number = answers + 1;  cold = table[N]
           <li>the blink threshold uses the true head count;</li>
           <li>everyone shares one identical perception of pressure;</li>
           <li>“hearing” another person’s sync comes from the roll-call state;</li>
-          <li>the Newton step takes its slope from the true state of all taps.</li>
+          <li>the Newton step takes its slope from the true state of all taps;</li>
+          <li>the jump check waits while someone still has no number, which nobody could know;</li>
+          <li>the relay runs by the clock from the first sync rather than “felt it, blink”;</li>
+          <li>the step threshold in the “pressure moved mid roll call” check uses the true number of people who answered;</li>
+          <li>turning a spike’s area ratio into a head count uses the true number present.</li>
         </ul>
         <ul lang="ru">
           <li>ранний прыжок старожилов берёт N из числа присутствующих;</li>
           <li>порог мырга считается от истинного числа людей;</li>
           <li>у всех одно и то же ощущение напора;</li>
           <li>«услышал чужое синхро» берётся из состояния переклички;</li>
-          <li>шаг Ньютона берёт наклон из истинного состояния всех кранов.</li>
+          <li>шаг Ньютона берёт наклон из истинного состояния всех кранов;</li>
+          <li>проверка прыжка откладывается, пока у кого-то нет номера, — этого никто знать не может;</li>
+          <li>эстафета идёт по часам от первого синхро, а не «услышал — мыргнул»;</li>
+          <li>порог ступеньки в проверке «напор сместился посреди переклички» берёт настоящее число ответивших;</li>
+          <li>перевод отношения площадей в число людей идёт при настоящем числе присутствующих.</li>
         </ul>
       </div>
       <div>
@@ -484,8 +492,8 @@ my number = answers + 1;  cold = table[N]
         </ul>
       </div>
     </div>
-    <p class="note" lang="en">The sheet shares two of these: the blink threshold, and the assumption that everyone notices a spoiled roll call at the same moment and blinks the restart exactly together. <code>simple</code> and <code>patient</code> use nothing but their own felt temperature.</p>
-    <p class="note" lang="ru">У шпаргалки два из этих допущений: порог мырга и то, что сбитую перекличку все замечают одновременно и общий мырг делают точно разом. <code>simple</code> и <code>patient</code> не используют ничего, кроме своей ощущаемой температуры.</p>
+    <p class="note" lang="en">All numbers are without perception noise (<code>noise: 0</code> by default). The sheet relies on two of these assumptions, the blink threshold and one shared perception of pressure, plus one of its own: everyone notices a spoiled roll call at the same moment and blinks the restart exactly together. <code>simple</code> and <code>patient</code> use nothing but their own felt temperature. Full list: <a href="https://github.com/komapc/shower-protocol/blob/main/README.ru.md#допущения-модели-где-агенты-знают-больше-чем-могли-бы">README.ru.md</a>.</p>
+    <p class="note" lang="ru">Все цифры без шума ощущения (<code>noise: 0</code> по умолчанию). Шпаргалка опирается на два из этих допущений, порог мырга и одно ощущение напора на всех, плюс одно своё: сбитую перекличку все замечают одновременно и общий мырг делают точно разом. <code>simple</code> и <code>patient</code> не используют ничего, кроме своей ощущаемой температуры. Полный список — в <a href="https://github.com/komapc/shower-protocol/blob/main/README.ru.md#допущения-модели-где-агенты-знают-больше-чем-могли-бы">README.ru.md</a>.</p>
   </section>
 
   <footer>
