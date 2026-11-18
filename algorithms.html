@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shower protocol: the algorithms</title>
+<meta name="description" content="Five ways to share one hot-water line, step by step: naive, patient, simple, the wall sheet and the relay protocol. Diagrams are drawn from the simulator itself.">
+<script>
+/* Language before first paint: ?lang=en|ru, else the browser language (ru/uk/be → ru). Same rule as index.html. */
+(function () {
+  var q = new URLSearchParams(location.search).get('lang');
+  var lang = q === 'en' || q === 'ru' ? q : (/^(ru|uk|be)\b/i.test(navigator.language || '') ? 'ru' : 'en');
+  document.documentElement.lang = lang;
+  if (lang === 'ru') document.title = 'Душевой протокол: алгоритмы';
+  window.LANG = lang;
+  window.L = function (ru, en) { return lang === 'en' ? en : ru; };
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Same tokens as index.html (tile + mixer teal). One reading column; diagrams are SVG drawn from sim.js at load. */
+:root {
+  --bg: #eaf0f0; --surface: #fbfdfd; --fg: #10202a; --muted: #566a73; --line: #d2dee0; --grid: #e3eaeb;
+  --accent: #0d7480; --accent-soft: #d3eaec; --roll: rgba(13,116,128,0.09);
+  --cold: #2a78d6; --hot: #e34948; --good: #0ca30c; --warn: #b26b00; --critical: #d03b3b;
+  --f-display: "Unbounded", "Golos Text", system-ui, sans-serif;
+  --f-body: "Golos Text", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1618; --surface: #152125; --fg: #e4edef; --muted: #93a7ae; --line: #26373c; --grid: #1d2b2f;
+    --accent: #3fb6c1; --accent-soft: #173b40; --roll: rgba(63,182,193,0.10);
+    --cold: #3987e5; --hot: #e66767; --warn: #e0a040;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1618; --surface: #152125; --fg: #e4edef; --muted: #93a7ae; --line: #26373c; --grid: #1d2b2f;
+  --accent: #3fb6c1; --accent-soft: #173b40; --roll: rgba(63,182,193,0.10);
+  --cold: #3987e5; --hot: #e66767; --warn: #e0a040;
+  color-scheme: dark;
+}
+html[lang="en"] [lang="ru"], html[lang="ru"] [lang="en"] { display: none !important; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 15.5px; line-height: 1.55; }
+.wrap {
+  max-width: 860px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 56px;
+  display: grid; gap: 20px;
+}
+header { display: grid; gap: 8px; position: relative; padding-right: 64px; }
+h1 { font-family: var(--f-display); font-weight: 700; font-size: clamp(22px, 4.4vw, 32px); margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+h2 { font-family: var(--f-display); font-weight: 500; font-size: 18px; margin: 0; letter-spacing: 0.005em; }
+h3 { font-size: 15.5px; margin: 6px 0 0; }
+p { margin: 0; }
+a { color: var(--accent); }
+.lang { position: absolute; top: 4px; right: 0; font-size: 13px; font-family: var(--f-mono); display: flex; gap: 8px; }
+.lang a { color: var(--muted); text-decoration: none; } .lang a[aria-current] { color: var(--fg); font-weight: 600; }
+.lead { color: var(--muted); max-width: 68ch; }
+.crumbs { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; }
+.crumbs a { text-decoration: none; } .crumbs a:hover { text-decoration: underline; }
+.crumbs b { font-weight: 600; }
+.toc { display: flex; flex-wrap: wrap; gap: 6px; }
+.toc a { font: 500 13px var(--f-mono); text-decoration: none; padding: 3px 10px; border: 1px solid var(--line); border-radius: 99px; color: var(--fg); background: var(--surface); }
+.toc a:hover { border-color: var(--accent); }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 12px; min-width: 0; scroll-margin-top: 12px; }
+.panel > p, .panel li { max-width: 72ch; }
+.mono, code { font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-size: 0.92em; }
+.muted { color: var(--muted); }
+.caption, figcaption { font-size: 13px; color: var(--muted); }
+ul, ol { margin: 0; padding-left: 22px; display: grid; gap: 5px; }
+li::marker { color: var(--accent); }
+
+.strat-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; }
+.tag { font: 600 13px var(--f-mono); padding: 2px 9px; border-radius: 6px; background: var(--accent); color: var(--surface); }
+.facts { display: flex; flex-wrap: wrap; gap: 6px; }
+.fact { font-size: 12.5px; padding: 1px 8px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+pre.code {
+  margin: 0; padding: 12px 14px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line);
+  font: 13px/1.6 var(--f-mono); overflow-x: auto; white-space: pre; tab-size: 2;
+}
+pre.code .c { color: var(--muted); }
+pre.code .k { color: var(--accent); font-weight: 600; }
+
+.tbl-box { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font-weight: 600; color: var(--muted); font-size: 12.5px; letter-spacing: 0.02em; background: var(--bg); }
+td.num, th.num { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wide { min-width: 600px; }
+
+figure.diag { margin: 0; display: grid; gap: 6px; }
+figure.diag svg { width: 100%; height: auto; display: block; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+.diag .axis { stroke: var(--line); }
+.diag .gridl { stroke: var(--grid); }
+.diag .tick { fill: var(--muted); font: 10.5px var(--f-mono); }
+.diag .raw { fill: none; stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.8; }
+.diag .felt { fill: none; stroke: var(--accent); stroke-width: 2; }
+.diag .band { fill: var(--roll); }
+.diag .blink { fill: var(--accent); opacity: 0.85; }
+.diag .blab { fill: var(--fg); font: 600 11px var(--f-mono); }
+.diag .ev { stroke: var(--warn); stroke-width: 1.2; stroke-dasharray: 2 3; }
+.diag .evlab { fill: var(--warn); font: 600 10.5px var(--f-body); }
+.diag .slot { stroke: var(--muted); stroke-width: 1; }
+.diag .slotlab { fill: var(--muted); font: 10px var(--f-mono); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { display: inline-block; width: 18px; height: 0; border-top: 2px solid var(--accent); }
+.legend i.raw { border-top: 1px dashed var(--muted); }
+.legend i.blk { height: 8px; border: 0; background: var(--accent); border-radius: 2px; width: 12px; }
+.legend i.evk { border-top: 1.5px dashed var(--warn); }
+
+.steps { counter-reset: s; list-style: none; padding: 0; display: grid; gap: 10px; }
+.steps > li { counter-increment: s; display: grid; grid-template-columns: 28px 1fr; gap: 0 10px; max-width: none; }
+.steps > li::before { content: counter(s); font: 600 13px var(--f-mono); color: var(--surface); background: var(--accent); width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; margin-top: 1px; }
+.badge { font: 600 11px var(--f-mono); padding: 0 6px; border-radius: 99px; border: 1px solid; white-space: nowrap; margin-left: 4px; vertical-align: 1px; }
+.badge.felt { color: var(--good); border-color: var(--good); }
+.badge.true { color: var(--warn); border-color: var(--warn); }
+.note { border-left: 3px solid var(--warn); padding: 4px 0 4px 12px; font-size: 14px; }
+details { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--bg); }
+details > summary { cursor: pointer; font-weight: 600; }
+details[open] > summary { margin-bottom: 8px; }
+details > div { display: grid; gap: 10px; }
+.cols { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+footer { font-size: 13px; color: var(--muted); display: grid; gap: 4px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <nav class="crumbs" aria-label="Site">
+      <a href="index.html" data-keep-lang><span lang="en">Simulator</span><span lang="ru">Симулятор</span></a>
+      <b><span lang="en">Algorithms</span><span lang="ru">Алгоритмы</span></b>
+      <a href="https://github.com/komapc/shower-protocol/blob/main/ARTICLE.md"><span lang="en">The story</span><span lang="ru">История (англ.)</span></a>
+      <a href="https://github.com/komapc/shower-protocol"><span lang="en">Source</span><span lang="ru">Код</span></a>
+    </nav>
+    <nav class="lang" id="langNav" aria-label="Language"></nav>
+    <h1><span lang="en">The algorithms</span><span lang="ru">Алгоритмы</span></h1>
+    <p class="lead" lang="en">Five ways for several people to share one hot-water line, from “keep fiddling with the hot tap” to a relay protocol that counts heads with pressure blinks. Every rule below is what <a href="https://github.com/komapc/shower-protocol/blob/main/sim.js"><code>sim.js</code></a> does, and every timing diagram is drawn live from a seeded run of that simulator.</p>
+    <p class="lead" lang="ru">Пять способов делить одну горячую трубу на несколько душевых: от «крутить горячий, пока не станет хорошо» до эстафеты, которая пересчитывает людей мыргами напора. Каждое правило ниже — это то, что делает <a href="https://github.com/komapc/shower-protocol/blob/main/sim.js"><code>sim.js</code></a>, а каждая временная диаграмма нарисована прямо сейчас по прогону этого симулятора с фиксированным сидом.</p>
+    <nav class="toc" aria-label="Contents">
+      <a href="#setup"><span lang="en">setup</span><span lang="ru">модель</span></a>
+      <a href="#glance"><span lang="en">at a glance</span><span lang="ru">коротко</span></a>
+      <a href="#naive">naive</a><a href="#patient">patient</a><a href="#simple">simple</a><a href="#sheet">sheet</a><a href="#relay">relay</a>
+      <a href="#results"><span lang="en">results</span><span lang="ru">результаты</span></a>
+      <a href="#honesty"><span lang="en">what is assumed</span><span lang="ru">допущения</span></a>
+    </nav>
+  </header>
+
+  <!-- ===================== setup ===================== -->
+  <section class="panel" id="setup">
+    <h2><span lang="en">The setup</span><span lang="ru">Модель</span></h2>
+    <div lang="en">
+      <ul>
+        <li>Each tap is a conductance <code>g</code>. The hot line is shared and stiff: its pressure is <code>p<sub>h</sub> = 1 / (1 + 2·Σg<sub>h</sub>)</code>. The cold line is weakly coupled: <code>p<sub>c</sub> = 1 / (1 + 0.35·Σg<sub>c</sub>)</code>. Opening one hot tap lowers the hot pressure for everybody.</li>
+        <li>Mix temperature: <code>(q<sub>h</sub>·60 + q<sub>c</sub>·15) / (q<sub>h</sub> + q<sub>c</sub>)</code> with <code>q = g·p</code>. It reaches the shower head after <b>L = 5 s</b>. Until then a newcomer gets 22 °C from the pipe.</li>
+        <li>Pressure is felt much sooner, after <b>P</b> seconds: a pure delay of 0.4·P plus smoothing with τ = 0.2·P. P is a slider in the simulator, 0.5 s by default.</li>
+        <li>Each person has a target between 36.5 and 41 °C and a comfort zone of ±0.5 °C. “Converged” means everyone is back in their zone.</li>
+        <li><b>Personal table.</b> Two strategies use a card by the tap: “with the hot tap on the mark and N people showering, set the cold tap to …”. Each entry is off by up to ±6 %.</li>
+        <li>The scenario: someone arrives every 45 s; after the last arrival, person 2 leaves.</li>
+      </ul>
+    </div>
+    <div lang="ru">
+      <ul>
+        <li>Каждый кран — проводимость <code>g</code>. Горячая магистраль общая и «жёсткая»: давление <code>p<sub>h</sub> = 1 / (1 + 2·Σg<sub>h</sub>)</code>. Холодная связана слабо: <code>p<sub>c</sub> = 1 / (1 + 0,35·Σg<sub>c</sub>)</code>. Открыл кто-то горячий — напор горячей упал у всех.</li>
+        <li>Температура смеси: <code>(q<sub>h</sub>·60 + q<sub>c</sub>·15) / (q<sub>h</sub> + q<sub>c</sub>)</code>, где <code>q = g·p</code>. До лейки она доходит через <b>L = 5 с</b>. Пока вода не дошла, у новенького течёт 22 °C из трубы.</li>
+        <li>Напор чувствуется гораздо раньше, через <b>P</b> секунд: чистая задержка 0,4·P плюс сглаживание с τ = 0,2·P. В симуляторе P — ползунок, по умолчанию 0,5 с.</li>
+        <li>У каждого своя цель от 36,5 до 41 °C и зона комфорта ±0,5 °C. «Сошлось» — все снова в своей зоне.</li>
+        <li><b>Личная табличка.</b> Двум стратегиям нужна карточка у крана: «горячий на метке, под душем N человек — ставь холодный на …». Каждая строка ошибается до ±6 %.</li>
+        <li>Сценарий: люди приходят каждые 45 с, после прихода последнего уходит второй.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===================== at a glance ===================== -->
+  <section class="panel" id="glance">
+    <h2><span lang="en">At a glance</span><span lang="ru">Коротко</span></h2>
+    <div class="tbl-box">
+      <table class="wide">
+        <thead>
+          <tr lang="en"><th>Strategy</th><th>Hot tap</th><th>Signals</th><th>Knows N</th><th>How the cold tap moves</th><th class="num">Converges in*</th></tr>
+          <tr lang="ru"><th>Стратегия</th><th>Горячий</th><th>Сигналы</th><th>Знает N</th><th>Как движется холодный</th><th class="num">Сходится за*</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><a href="#naive"><code>naive</code></a></td>
+            <td><span lang="en">every second</span><span lang="ru">каждую секунду</span></td><td>—</td><td>—</td>
+            <td><span lang="en">only when the hot tap hits its limit</span><span lang="ru">только когда горячий упёрся в край</span></td>
+            <td class="num"><span lang="en">never (N ≥ 2)</span><span lang="ru">никогда (N ≥ 2)</span></td></tr>
+          <tr><td><a href="#patient"><code>patient</code></a></td>
+            <td><span lang="en">on the mark</span><span lang="ru">на метке</span></td><td>—</td><td>—</td>
+            <td><span lang="en">a small step, then wait L + 1 s</span><span lang="ru">маленький шаг, потом ждать L + 1 с</span></td>
+            <td class="num">~35 s</td></tr>
+          <tr><td><a href="#simple"><code>simple</code></a></td>
+            <td><span lang="en">on the mark</span><span lang="ru">на метке</span></td><td>—</td><td>—</td>
+            <td><span lang="en">a tiny nudge every ~1 s, random interval</span><span lang="ru">крошечный сдвиг раз в ~1 с, интервал случайный</span></td>
+            <td class="num">32 s</td></tr>
+          <tr><td><a href="#sheet"><code>sheet</code></a></td>
+            <td><span lang="en">on the mark</span><span lang="ru">на метке</span></td>
+            <td><span lang="en">blinks by stall number + a wall clock</span><span lang="ru">мырги по номеру кабинки + часы на стене</span></td><td>✓</td>
+            <td><span lang="en">jump to the table entry, then nudges</span><span lang="ru">прыжок по табличке, потом подкрутка</span></td>
+            <td class="num">29 s</td></tr>
+          <tr><td><a href="#relay"><code>relay</code></a></td>
+            <td><span lang="en">on the mark</span><span lang="ru">на метке</span></td>
+            <td><span lang="en">relay roll call of blinks</span><span lang="ru">эстафетная перекличка мыргами</span></td><td>✓</td>
+            <td><span lang="en">jump to the table entry, then Newton steps</span><span lang="ru">прыжок по табличке, потом шаги Ньютона</span></td>
+            <td class="num">15 s</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="caption" lang="en">* Median time to converge with N = 4, P = 0.5 s, L = 5 s (<a href="#results">results</a>; <code>patient</code> from the README). The relay’s number leans on several assumptions, listed <a href="#honesty">below</a>.</p>
+    <p class="caption" lang="ru">* Медиана схождения при N = 4, P = 0,5 с, L = 5 с (<a href="#results">результаты</a>; <code>patient</code> — из README). Цифра эстафеты опирается на несколько допущений, они перечислены <a href="#honesty">ниже</a>.</p>
+  </section>
+
+  <!-- ===================== naive ===================== -->
+  <section class="panel" id="naive">
+    <div class="strat-head"><span class="tag">naive</span>
+      <h2><span lang="en">Fiddle with the hot tap</span><span lang="ru">Крутить горячий</span></h2></div>
+    <p lang="en">What people do without a plan: too cold, open the hot tap a bit more; too hot, close it a bit. Every second.</p>
+    <p lang="ru">Что делают без договорённости: холодно — приоткрыть горячий, горячо — прикрыть. Каждую секунду.</p>
+<pre class="code"><span class="k">every</span> 1 s:
+  e = target − felt          <span class="c">// felt = the mix from L seconds ago</span>
+  hot += 0.02·e
+  <span class="k">if</span> hot hit 0.05 or 1:  cold −= 0.01·e</pre>
+    <p lang="en"><b>Why it fails.</b> The temperature answers L = 5 s late, so each correction is made against old news and the loop overshoots. With two or more people it is worse: every hot-tap move changes the hot pressure for everybody, so neighbours keep knocking each other out of their zones. It never converges before the next event.</p>
+    <p lang="ru"><b>Почему не работает.</b> Температура отвечает с опозданием L = 5 с, каждая поправка делается по устаревшим данным, и петля раскачивается. С двумя и больше людьми ещё хуже: любое движение горячего меняет напор горячей у всех, и соседи всё время выбивают друг друга из зоны. До следующего события не сходится никогда.</p>
+  </section>
+
+  <!-- ===================== patient ===================== -->
+  <section class="panel" id="patient">
+    <div class="strat-head"><span class="tag">patient</span>
+      <h2><span lang="en">Hot on the mark, wait out the delay</span><span lang="ru">Горячий на метке, выжидать задержку</span></h2></div>
+<pre class="code">hot = mark                  <span class="c">// a shared mark on every hot tap</span>
+<span class="k">every</span> L + 1 s:
+  e = target − felt
+  <span class="k">if</span> |e| &gt; 0.3 °C:  cold −= clamp(0.012·e, ±0.08)</pre>
+    <p lang="en">Two ideas that every later strategy keeps. <b>Nobody touches the hot tap</b>, so the strong coupling through the hot line disappears and only the weak cold coupling is left. <b>Wait one water delay</b> between moves, so you see the result of your last step before taking the next one. It always converges, but slowly: about 35 s per event.</p>
+    <p lang="ru">Две идеи, которые остаются во всех следующих стратегиях. <b>Горячий никто не трогает</b> — сильная связь через горячую трубу пропадает, остаётся слабая через холодную. <b>Между шагами ждать одну задержку воды</b> — видишь результат прошлого шага до следующего. Сходится всегда, но медленно: около 35 с на событие.</p>
+  </section>
+
+  <!-- ===================== simple ===================== -->
+  <section class="panel" id="simple">
+    <div class="strat-head"><span class="tag">simple</span>
+      <h2><span lang="en">Tiny nudges at random intervals</span><span lang="ru">Мелкие сдвиги через случайные интервалы</span></h2>
+      <div class="facts"><span class="fact"><span lang="en">no signals</span><span lang="ru">без сигналов</span></span><span class="fact"><span lang="en">no N</span><span lang="ru">без N</span></span></div></div>
+<pre class="code">hot = mark
+<span class="k">every</span> Δt = 1 s ± 30 % (<span class="k">random</span>):
+  e = target − felt
+  <span class="k">if</span> |e| &gt; 0.3 °C:  cold −= clamp(0.0015·e, ±0.03) · Δt</pre>
+    <p lang="en">Instead of a big step and a long wait, a step so small that it can be taken every second: at most 3 % of the cold tap’s travel per second, and in practice the 0.0015·e term is smaller still. Nobody signals and nobody needs to know N. This is the “dumb rule” from the article, and it is a fair answer.</p>
+    <p lang="ru">Вместо большого шага и долгого ожидания — шаг настолько маленький, что его можно делать каждую секунду: не больше 3 % хода холодного крана в секунду, а на деле 0,0015·e ещё меньше. Никто не сигналит, N знать не нужно. Это то самое «тупое правило» из статьи, и оно честный ответ.</p>
+    <div class="cols">
+      <p lang="en"><b>The random interval matters.</b> With a fixed 1 s everyone moves in lockstep and they swing together: 20 % of events don’t converge with N = 4 and 55 % with N = 6, instead of 0 % and 27 %.</p>
+      <p lang="ru"><b>Случайный интервал важен.</b> С ровной секундой все двигаются в такт и раскачиваются вместе: 20 % несошедшихся при N = 4 и 55 % при N = 6 вместо 0 и 27 %.</p>
+      <p lang="en"><b>The gain window is narrow.</b> N = 4: k = 0.001 leaves 47 % unconverged (too slow), 0.0015 gives 0 %, 0.002 gives 20 % and 0.003 gives 78 % (swinging). The safe k depends on N and on the water delay L, and <code>simple</code> knows neither. At L = 8 s, 76 % of events don’t converge.</p>
+      <p lang="ru"><b>Окно коэффициента узкое.</b> N = 4: k = 0,001 — 47 % не сошлось (не успевает), 0,0015 — 0 %, 0,002 — 20 %, 0,003 — 78 % (раскачка). Безопасный k зависит от N и от задержки воды L, а <code>simple</code> не знает ни того, ни другого. При L = 8 с не сходится 76 % событий.</p>
+    </div>
+  </section>
+
+  <!-- ===================== sheet ===================== -->
+  <section class="panel" id="sheet">
+    <div class="strat-head"><span class="tag">sheet</span>
+      <h2><span lang="en">Five rules on the wall</span><span lang="ru">Пять правил на стене</span></h2>
+      <div class="facts"><span class="fact"><span lang="en">numbered stalls</span><span lang="ru">номера на кабинках</span></span><span class="fact"><span lang="en">a clock with a second hand</span><span lang="ru">часы с секундной стрелкой</span></span></div></div>
+    <p lang="en">The middle ground: a protocol a person could actually follow from a sheet of paper. The roll call is a timetable: <b>your stall number is your second</b>.</p>
+    <p lang="ru">Середина: протокол, которому человек правда может следовать по листку на стене. Перекличка — это расписание: <b>номер кабинки — твоя секунда</b>.</p>
+    <ol class="steps" lang="en">
+      <li><span>The hot tap always stays on the mark; set the temperature with the cold tap only.</span></li>
+      <li><span>The pressure jumped (somebody opened or closed a tap) — look at the clock. At <b>stall number × S seconds</b>, blink: close the hot tap for half a second. If you just arrived, start counting <b>D seconds</b> after opening your tap.</span></li>
+      <li><span>Count the blinks: that is how many of you there are. Set the cold tap to the entry for that number.</span></li>
+      <li><span>Then nudge the cold tap a little every second or two (this step is <code>simple</code>).</span></li>
+      <li><span>The pressure jumped in the middle of a roll call — it doesn’t count. At its end everyone blinks at once and the count restarts from that common blink.</span></li>
+    </ol>
+    <ol class="steps" lang="ru">
+      <li><span>Горячий кран — всегда на метке. Температуру крутишь только холодным.</span></li>
+      <li><span>Напор скакнул (кто-то открыл или закрыл кран) — глянь на часы. Через <b>номер своей кабинки × S секунд</b> мыргни: на полсекунды закрой горячий. Вошёл сам — отсчёт начинай через <b>D секунд</b> после того, как открыл кран.</span></li>
+      <li><span>Сосчитай мырги — это сколько вас. Поставь холодный на деление для этого числа.</span></li>
+      <li><span>Дальше подкручивай холодный понемногу, раз в секунду-две (этот шаг — <code>simple</code>).</span></li>
+      <li><span>Напор скакнул посреди переклички — она не считается. В конце все разом мыргают, и счёт начинается заново от этого общего мырга.</span></li>
+    </ol>
+<pre class="code">S = max(2 s, T + P + 1.5 s)    <span class="c">// blink + pressure delay + ±0.5 s reaction for two people</span>
+D = 1.4·P + 0.3 s              <span class="c">// how long the felt pressure lags your own tap</span>
+<span class="k">on</span> a felt pressure jump at t₀:
+  blink at t₀ + stall·S
+  <span class="k">for</span> each felt blink at t:  slot k = round((t − t₀ − 0.4·P − T) / S)
+  N = number of slots that had a blink
+  cold = table[N];  <span class="k">then</span> simple nudges</pre>
+    <figure class="diag" data-diag="sheet">
+      <svg role="img"></svg>
+      <figcaption></figcaption>
+    </figure>
+    <div class="cols">
+      <p lang="en"><b>Why stall numbers.</b> Blinks never collide however many people arrive at once, so there is no relay, no lots and no area measurements. The cost: the call always runs through all six stalls, which is slow when the pressure is slow (36–52 s at P ≥ 2 s).</p>
+      <p lang="ru"><b>Почему номера кабинок.</b> Мырги не сталкиваются, сколько бы людей ни пришло разом: ни эстафеты, ни жребия, ни площадей. Цена — перекличка всегда идёт по всем шести кабинкам, при медленном напоре это долго (36–52 с при P ≥ 2 с).</p>
+      <p lang="en"><b>Why a clock.</b> Counting 15 seconds in your head is off by ~10 %; then stalls 5 and 6 merge and 13 % of roll calls are miscounted. Reading a clock, the error doesn’t accumulate: ±0.5 s and even ±0.8 s of reaction time give 0 errors.</p>
+      <p lang="ru"><b>Почему часы.</b> Отсчитывая 15 секунд в уме, человек ошибается на ~10 %: кабинки 5 и 6 сливаются, и подсчёт неверен в 13 % перекличек. По часам ошибка не копится: реакция ±0,5 с и даже ±0,8 с — 0 ошибок.</p>
+    </div>
+  </section>
+
+  <!-- ===================== relay ===================== -->
+  <section class="panel" id="relay">
+    <div class="strat-head"><span class="tag">relay</span>
+      <h2><span lang="en">The relay protocol</span><span lang="ru">Эстафета</span></h2>
+      <div class="facts"><span class="fact"><span lang="en">learns N</span><span lang="ru">узнаёт N</span></span><span class="fact">≈ CSMA/CD</span></div></div>
+    <p lang="en">The fast one, and the one that needed the most fixing. It keeps the hot tap on the mark, but instead of waiting for feedback it <b>learns N</b> through a roll call and jumps the cold tap straight to the table entry for the new N. Nearly all of its complexity is counting N over a shared channel, which is why it ends up resembling Ethernet’s CSMA/CD and the “beeping model”.</p>
+    <p lang="ru">Самый быстрый и самый долго чинившийся. Горячий на метке, но вместо ожидания обратной связи эстафета <b>узнаёт N</b> перекличкой и сразу ставит холодный по табличке для нового N. Почти вся её сложность — подсчёт N через общий канал, поэтому она и похожа на CSMA/CD из Ethernet и на «beeping model».</p>
+
+    <h3><span lang="en">The signals</span><span lang="ru">Сигналы</span></h3>
+    <div class="tbl-box">
+      <table>
+        <thead>
+          <tr lang="en"><th>Signal</th><th>How it is made</th><th>What everyone feels</th></tr>
+          <tr lang="ru"><th>Сигнал</th><th>Как подаётся</th><th>Что чувствуют все</th></tr>
+        </thead>
+        <tbody>
+          <tr lang="en"><td><b>blink</b></td><td>close the hot tap for T</td><td>a short rise in hot pressure</td></tr>
+          <tr lang="ru"><td><b>мырг</b></td><td>закрыть горячий на T</td><td>короткий всплеск напора горячей</td></tr>
+          <tr lang="en"><td><b>arrival / departure</b></td><td>open / close the hot tap</td><td>a step down / up</td></tr>
+          <tr lang="ru"><td><b>приход / уход</b></td><td>открыть / закрыть горячий</td><td>ступенька вниз / вверх</td></tr>
+          <tr lang="en"><td><b>jam</b></td><td>close the hot tap for 5T</td><td>a long rise: “the last roll call doesn’t count”</td></tr>
+          <tr lang="ru"><td><b>стоп-сигнал</b></td><td>закрыть горячий на 5T</td><td>длинный всплеск: «последняя перекличка не в счёт»</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3><span lang="en">Timing</span><span lang="ru">Темп</span></h3>
+    <p lang="en">All timing scales with the pressure delay P. The values in the table are read from the simulator (<code>Tunit</code>, <code>hop</code>, <code>cw0</code>, <code>slotS</code> in its result) for each P.</p>
+    <p lang="ru">Весь темп масштабируется от задержки напора P. Значения в таблице прочитаны из симулятора (<code>Tunit</code>, <code>hop</code>, <code>cw0</code>, <code>slotS</code> в его результате) для каждого P.</p>
+    <div class="tbl-box"><table class="wide" id="timing"></table></div>
+    <p class="caption" lang="en">Hearing another person’s blink takes 0.4·P + 0.3 s, so the relay step is T + 0.4·P + 0.3. The blink must stay short: it is also a temperature jolt that reaches every shower head L seconds later. The old rule T = 0.8·P broke the protocol at P ≥ 2 s.</p>
+    <p class="caption" lang="ru">Чужой мырг слышно через 0,4·P + 0,3 с, отсюда шаг эстафеты T + 0,4·P + 0,3. Мырг должен быть коротким: это ещё и толчок температуры, который через L секунд приходит ко всем лейкам. Прежнее правило T = 0,8·P ломало протокол при P ≥ 2 с.</p>
+
+    <h3><span lang="en">Someone arrives</span><span lang="ru">Кто-то пришёл</span></h3>
+    <ol class="steps" lang="en">
+      <li><span><b>Open and listen.</b> The newcomer opens the hot tap on the mark and sets the cold tap to the table entry for “two of us” as a guess. Everybody else feels the step down. Regulars jump to the entry for N + 1 right away <span class="badge true">true state</span>: they don’t need the roll call, only the newcomer does.</span></li>
+      <li><span><b>Random pause, then sync.</b> The newcomer waits D + 0.3 s plus a random pause of up to cw, and if the channel stayed quiet, blinks a <b>sync</b>. The pause has to cover the time it takes to hear someone else’s sync (~P).</span></li>
+      <li><span><b>Relay.</b> Regular No. k blinks as soon as they feel the end of No. k−1’s blink: one step = T + 0.4·P + 0.3. Only No. 1 waits an extra T after the sync, so the sync’s tail fades and can be measured.</span></li>
+      <li><span><b>Count.</b> Blinks are counted in the felt pressure <span class="badge felt">felt</span>. N = 1 + answers; the newcomer takes number N, the regulars keep theirs.</span></li>
+      <li><span><b>Check the roll call.</b> Whoever started it compares the felt pressure before the sync and after the end. If it moved by more than half a step, someone arrived mid-call and may have eaten a blink: the result is void, and the initiator repeats at once <span class="badge felt">felt</span>.</span></li>
+      <li><span><b>Jump, then correct.</b> The newcomer sets the cold tap from the table for N. Then, every L + 1 s, a Newton step: <code>cold += 0.8·e / slope</code> <span class="badge true">true state</span>. If the jump missed by more than 2 °C, N is probably wrong: a <b>recount</b> (see below).</span></li>
+    </ol>
+    <ol class="steps" lang="ru">
+      <li><span><b>Открыть и слушать.</b> Новенький ставит горячий на метку, холодный — по табличке для «нас двое», как догадку. Остальные чувствуют ступеньку вниз. Старожилы сразу прыгают на строку для N + 1 <span class="badge true">истинное состояние</span>: им перекличка не нужна, она нужна только новенькому.</span></li>
+      <li><span><b>Случайная пауза, потом синхро.</b> Новенький ждёт D + 0,3 с плюс случайную паузу до cw и, если канал молчал, мыргает <b>синхро</b>. Пауза должна покрывать время, за которое слышно чужое синхро (~P).</span></li>
+      <li><span><b>Эстафета.</b> Старожил №k мыргает, как только почувствовал конец мырга №k−1: шаг = T + 0,4·P + 0,3. Только №1 выжидает после синхро лишнюю паузу T, чтобы хвост синхро затих и его можно было измерить.</span></li>
+      <li><span><b>Счёт.</b> Мырги считаются по ощущаемому напору <span class="badge felt">ощущение</span>. N = 1 + ответы; новенький берёт номер N, старожилы оставляют свои.</span></li>
+      <li><span><b>Проверка переклички.</b> Инициатор сравнивает ощущаемый напор до синхро и после конца. Сдвинулся больше чем на полступеньки — кто-то пришёл посреди переклички и мог «съесть» мырг: результат не в счёт, инициатор сразу повторяет <span class="badge felt">ощущение</span>.</span></li>
+      <li><span><b>Прыжок, потом поправки.</b> Новенький ставит холодный по табличке для N. Дальше каждые L + 1 с шаг Ньютона: <code>cold += 0,8·e / наклон</code> <span class="badge true">истинное состояние</span>. Промах после прыжка больше 2 °C — N, видимо, неверное: <b>пересчёт</b> (см. ниже).</span></li>
+    </ol>
+    <figure class="diag" data-diag="entry">
+      <svg role="img"></svg>
+      <figcaption></figcaption>
+    </figure>
+
+    <h3><span lang="en">Someone leaves</span><span lang="ru">Кто-то ушёл</span></h3>
+    <p lang="en">The leaver waits for silence and closes the tap; everyone feels the step up. A roll call of the remaining numbers follows, with a gap of one silence where the leaver’s number was. Everyone above the gap moves down one number, and everyone sets N − 1.</p>
+    <p lang="ru">Уходящий дожидается тишины и закрывает кран; все чувствуют ступеньку вверх. Дальше перекличка оставшихся номеров, и на месте ушедшего — дырка длиной в тишину. Все, кто выше дырки, сдвигаются на номер вниз, все ставят N − 1.</p>
+    <figure class="diag" data-diag="exit">
+      <svg role="img"></svg>
+      <figcaption></figcaption>
+    </figure>
+
+    <h3><span lang="en">When two arrive almost together</span><span lang="ru">Когда двое приходят почти разом</span></h3>
+    <p lang="en">The hard part. You can’t listen without opening your tap, so both are already under the water by the time it turns out there are two of them. Each rule below closed a failure that the sweeps (<code>tools/pair-sweep.js</code>, <code>tools/sweep.js</code>) had found.</p>
+    <p lang="ru">Самое сложное. Слушать, не открыв кран, нельзя, поэтому к тому моменту, как выясняется, что их двое, оба уже под водой. Каждое правило ниже закрывает сбой, найденный прогонами (<code>tools/pair-sweep.js</code>, <code>tools/sweep.js</code>).</p>
+    <details>
+      <summary><span lang="en">Heard the other sync: join the tail</span><span lang="ru">Услышал чужое синхро — в хвост</span></summary>
+      <div>
+        <p lang="en">If, during your random pause, you hear someone else’s sync, don’t start your own. Blink in the <b>tail</b> of the same roll call instead: after the last regular plus a silence. Everyone counts the tail too. The tail window is held open only when the pressure shows more newcomers than syncs.</p>
+        <p lang="ru">Если за свою случайную паузу услышал чужое синхро — своё не начинай. Мыргни в <b>хвосте</b> той же переклички: после последнего старожила, выдержав тишину. Хвост тоже считают все. Окно под хвост держат, только если по напору видно больше пришедших, чем синхро.</p>
+        <figure class="diag" data-diag="tail">
+          <svg role="img"></svg>
+          <figcaption></figcaption>
+        </figure>
+      </div>
+    </details>
+    <details>
+      <summary><span lang="en">Didn’t hear it in time: merged syncs, measured by area</span><span lang="ru">Не успел услышать: слившиеся синхро, по площади</span></summary>
+      <div>
+        <p lang="en">If both blink a sync within ~0.4·P + 0.3 s of each other, the syncs merge into one spike. But the spike before answer No. 1 then has about twice the <b>area</b> of any regular’s answer (same tap, same pressure). Area, not peaks: two blinks back to back make one peak with double area. Pressure depends on the number of open taps non-linearly, so the ratio is compared with what k simultaneous blinks would give, not with k itself. Everyone hears it: N = answers + 2 <span class="badge felt">felt</span>.</p>
+        <p lang="ru">Если оба мыргнули синхро в пределах ~0,4·P + 0,3 с, синхро сливаются в один всплеск. Но тогда у всплеска до ответа №1 примерно вдвое больше <b>площадь</b>, чем у ответа любого старожила (тот же кран, тот же напор). Площадь, а не пики: два мырга вплотную дают один пик с двойной площадью. Напор зависит от числа открытых кранов нелинейно, поэтому отношение сравнивают с тем, что дали бы k мыргов разом, а не с самим k. Слышат все: N = ответы + 2 <span class="badge felt">ощущение</span>.</p>
+        <p lang="en">The two newcomers now share a number, so they <b>draw lots</b>: each waits a random pause and blinks unless they heard the other first. The first to blink keeps the number, the other takes the next one. If they blinked together (the spike is 1.5× a single blink or more), they repeat with twice the pause. Slots in the relay and the tail are counted by area too, so two people with one number aren’t lost.</p>
+        <p lang="ru">Теперь у двух новеньких один номер, и они <b>тянут жребий</b>: каждый ждёт случайную паузу и мыргает, если не услышал другого раньше. Мыргнувший первым оставляет номер, второй берёт следующий. Мыргнули разом (всплеск от 1,5 одного мырга) — повтор с паузой вдвое длиннее. Слоты эстафеты и хвост тоже считаются по площади, поэтому двое с одним номером не теряются.</p>
+      </div>
+    </details>
+    <details>
+      <summary><span lang="en">Empty shower room: recount by temperature</span><span lang="ru">Пустая душевая: пересчёт по температуре</span></summary>
+      <div>
+        <p lang="en">With no regulars there is no answer to compare a merged sync with, so both newcomers think “I’m alone”. The jump check catches it: L + 1 s after the jump, if the temperature is off by more than 2 °C, the person blinks a sync again, without a pressure step. Everyone answers, and everyone takes N from the blink count <span class="badge felt">felt</span>. At most three recounts per event.</p>
+        <p lang="ru">Старожилов нет — слившееся синхро не с чем сравнить, и оба новеньких думают «я один». Ловит проверка прыжка: через L + 1 с после прыжка промах больше 2 °C — снова синхро, уже без ступеньки напора. Отвечают все, и N все берут по числу мыргов <span class="badge felt">ощущение</span>. Не больше трёх пересчётов на событие.</p>
+      </div>
+    </details>
+    <details>
+      <summary><span lang="en">Fallback: the jam signal</span><span lang="ru">Запасной путь: стоп-сигнал</span></summary>
+      <div>
+        <p lang="en">The lowest-numbered regular remembers the baseline pressure and how many people there were. From the drop they estimate how many people arrived (“one step at n people feels like this”), and they count syncs by ear. If there are more steps than syncs and the missing sync doesn’t come within the waiting window, they <b>jam</b>: close the hot tap for 5T. The last roll call is void; its newcomers forget their numbers and retry with twice the pause, and the regulars roll N back <span class="badge felt">felt</span>. Since merged syncs are now read by area, this rarely fires; the wait before it is expensive.</p>
+        <p lang="ru">Старожил с наименьшим номером помнит базовый напор и сколько было людей. По падению напора он оценивает, сколько пришло («одна ступенька при n людях ощущается так»), а синхро считает на слух. Ступенек больше, чем синхро, и недостающее не пришло за окно ожидания — <b>стоп-сигнал</b>: закрыть горячий на 5T. Последняя перекличка не в счёт; её новенькие забывают номера и пробуют снова с паузой вдвое длиннее, старожилы откатывают N <span class="badge felt">ощущение</span>. Теперь, когда слияние читается по площади, это срабатывает редко: ожидание перед стоп-сигналом дорогое.</p>
+      </div>
+    </details>
+
+<pre class="code"><span class="c">// relay, newcomer side (attempt() and finishEntryRoll() in sim.js)</span>
+hot = mark;  cold = table[2]
+wait D + 0.3 + random(0 … cw)
+<span class="k">if</span> a roll call is running:
+  <span class="k">if</span> heard its sync <span class="k">and</span> a tail is held:  blink in the tail
+  <span class="k">elif</span> heard its sync:                   retry after it ends + silence
+  <span class="k">else</span>:                                  my sync merges with theirs
+<span class="k">else</span>: blink sync
+<span class="c">// regulars: No. 1 at sync + hop + T, No. k at No. k−1 + hop</span>
+syncs = round_by_area(spike before No. 1 / median answer)
+N     = syncs + answers + tail
+<span class="k">if</span> pressure moved during the call:  void, initiator repeats now
+my number = answers + 1;  cold = table[N]
+<span class="k">every</span> L + 1 s:  <span class="k">if</span> |e| &gt; 0.3 °C:  cold += 0.8·e / slope
+<span class="k">if</span> |e| &gt; 2 °C after the jump:  recount</pre>
+  </section>
+
+  <!-- ===================== results ===================== -->
+  <section class="panel" id="results">
+    <h2><span lang="en">Results</span><span lang="ru">Результаты</span></h2>
+    <p class="caption" lang="en"><code>node tools/compare.js</code>, 100 seeds per row, water delay L = 5 s, an arrival or departure every 45 s. Median time to converge / share of events that didn’t converge before the next one. Copied from the README.</p>
+    <p class="caption" lang="ru"><code>node tools/compare.js</code>, 100 сидов на строку, задержка воды L = 5 с, приход или уход каждые 45 с. Медиана схождения / доля событий, не сошедшихся до следующего. Из README.</p>
+    <div class="tbl-box">
+      <table class="wide">
+        <thead><tr><th></th><th>simple</th><th>sheet</th><th>relay</th></tr></thead>
+        <tbody>
+          <tr><td>P = 0.5 s, N = 2 / 4 / 6</td><td>33 / 32 / 32 s; 0 / 0 / <b>27 %</b></td><td>23 / 29 / 29 s; 0 %</td><td>10 / 15 / 19 s; 0 %</td></tr>
+          <tr><td>P = 2 s, N = 2 / 4 / 6</td><td><span lang="en">same (doesn’t use pressure)</span><span lang="ru">то же (напор не использует)</span></td><td>34 / 36 / 36 s; <b>26 / 48 / 65 %</b></td><td>13 / 21 / 24 s; 0 %</td></tr>
+          <tr><td><span lang="en">P = 2 s, events every 90 s</span><span lang="ru">P = 2 s, события раз в 90 с</span></td><td>33 / 32 / 34 s; 0 %</td><td>36 / 36 / 43 s; 0 %</td><td>13 / 20 / 24 s; 0 %</td></tr>
+          <tr><td><span lang="en">water delay L = 3 / 8 / 12 s (N = 4)</span><span lang="ru">задержка воды L = 3 / 8 / 12 с (N = 4)</span></td><td>33 / 40 / — s; 0 / <b>76 / 100 %</b></td><td>0 / 4 / 46 %</td><td>13 / 21 / 29 s; 0 %</td></tr>
+          <tr><td><span lang="en">six people, two / three arrive at once</span><span lang="ru">шестеро, двое / трое приходят разом</span></td><td>18 / 22 %</td><td>0 %</td><td>0 / 1 %</td></tr>
+          <tr><td><span lang="en">discomfort, six people, P = 0.5 s (°C·s each)</span><span lang="ru">дискомфорт, шестеро, P = 0,5 с (°C·с на человека)</span></td><td>234</td><td>241</td><td>185</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p lang="en">The relay wins on raw numbers. The simple rule needs no agreement at all and breaks only with many people or long pipes; the wall sheet is the middle ground a human could follow. At slow pressure (P = 3 s) the relay’s blinks themselves jolt the temperature, and with six people <code>simple</code> has less discomfort (234 against 282).</p>
+    <p lang="ru">По сырым цифрам выигрывает эстафета. Простому правилу не нужен никакой договор, и ломается оно только при многих людях или длинных трубах; шпаргалка — середина, которой может следовать человек. При медленном напоре (P = 3 с) мырги эстафеты сами качают температуру, и при шестерых дискомфорт у <code>simple</code> меньше (234 против 282).</p>
+  </section>
+
+  <!-- ===================== honesty ===================== -->
+  <section class="panel" id="honesty">
+    <h2><span lang="en">What the agents feel, and what they peek at</span><span lang="ru">Что агенты чувствуют, а что подсматривают</span></h2>
+    <p lang="en">A simulator makes it easy to let agents know more than a person under a shower could. These parts of <code>relay</code> read the simulator’s true state, so the numbers that depend on them are assumptions, not results:</p>
+    <p lang="ru">В симуляторе легко дать агентам знать больше, чем мог бы знать человек под душем. Эти части <code>relay</code> читают истинное состояние симулятора, поэтому цифры, которые от них зависят, — допущения, а не результаты:</p>
+    <div class="cols">
+      <div>
+        <p><span class="badge true" style="margin:0"><span lang="en">reads true state</span><span lang="ru">истинное состояние</span></span></p>
+        <ul lang="en">
+          <li>the regulars’ early jump takes N from the people present;</li>
+          <li>the blink threshold uses the true head count;</li>
+          <li>everyone shares one identical perception of pressure;</li>
+          <li>“hearing” another person’s sync comes from the roll-call state;</li>
+          <li>the Newton step takes its slope from the true state of all taps;</li>
+          <li>the jump check waits while someone still has no number, which nobody could know;</li>
+          <li>the relay runs by the clock from the first sync rather than “felt it, blink”;</li>
+          <li>the step threshold in the “pressure moved mid roll call” check uses the true number of people who answered;</li>
+          <li>turning a spike’s area ratio into a head count uses the true number present.</li>
+        </ul>
+        <ul lang="ru">
+          <li>ранний прыжок старожилов берёт N из числа присутствующих;</li>
+          <li>порог мырга считается от истинного числа людей;</li>
+          <li>у всех одно и то же ощущение напора;</li>
+          <li>«услышал чужое синхро» берётся из состояния переклички;</li>
+          <li>шаг Ньютона берёт наклон из истинного состояния всех кранов;</li>
+          <li>проверка прыжка откладывается, пока у кого-то нет номера, — этого никто знать не может;</li>
+          <li>эстафета идёт по часам от первого синхро, а не «услышал — мыргнул»;</li>
+          <li>порог ступеньки в проверке «напор сместился посреди переклички» берёт настоящее число ответивших;</li>
+          <li>перевод отношения площадей в число людей идёт при настоящем числе присутствующих.</li>
+        </ul>
+      </div>
+      <div>
+        <p><span class="badge felt" style="margin:0"><span lang="en">felt (honest)</span><span lang="ru">ощущение (честно)</span></span></p>
+        <ul lang="en">
+          <li>counting blinks from felt pressure;</li>
+          <li>double-sync detection by spike area, and the lots;</li>
+          <li>the jam signal;</li>
+          <li>collision detection by temperature (the recount);</li>
+          <li>detecting an arrival in the middle of a roll call.</li>
+        </ul>
+        <ul lang="ru">
+          <li>подсчёт мыргов по ощущаемому напору;</li>
+          <li>распознавание двойного синхро по площади и жребий;</li>
+          <li>стоп-сигнал;</li>
+          <li>обнаружение столкновения по температуре (пересчёт);</li>
+          <li>обнаружение прихода посреди переклички.</li>
+        </ul>
+      </div>
+    </div>
+    <p class="note" lang="en">All numbers are without perception noise (<code>noise: 0</code> by default). The sheet relies on two of these assumptions, the blink threshold and one shared perception of pressure, plus one of its own: everyone notices a spoiled roll call at the same moment and blinks the restart exactly together. <code>simple</code> and <code>patient</code> use nothing but their own felt temperature. Full list: <a href="https://github.com/komapc/shower-protocol/blob/main/README.ru.md#допущения-модели-где-агенты-знают-больше-чем-могли-бы">README.ru.md</a>.</p>
+    <p class="note" lang="ru">Все цифры без шума ощущения (<code>noise: 0</code> по умолчанию). Шпаргалка опирается на два из этих допущений, порог мырга и одно ощущение напора на всех, плюс одно своё: сбитую перекличку все замечают одновременно и общий мырг делают точно разом. <code>simple</code> и <code>patient</code> не используют ничего, кроме своей ощущаемой температуры. Полный список — в <a href="https://github.com/komapc/shower-protocol/blob/main/README.ru.md#допущения-модели-где-агенты-знают-больше-чем-могли-бы">README.ru.md</a>.</p>
+  </section>
+
+  <footer>
+    <p lang="en">Try every strategy with your own sliders in the <a href="index.html" data-keep-lang>simulator</a>. The full write-up, with every table and known limitation, is <a href="https://github.com/komapc/shower-protocol/blob/main/README.ru.md">README.ru.md</a> (Russian). MIT licence.</p>
+    <p lang="ru">Все стратегии со своими ползунками — в <a href="index.html" data-keep-lang>симуляторе</a>. Полный разбор со всеми таблицами и ограничениями — <a href="https://github.com/komapc/shower-protocol/blob/main/README.ru.md">README.ru.md</a>. Лицензия MIT.</p>
+  </footer>
+</div>
+
+<script src="sim.js"></script>
+<script>
+(function () {
+  'use strict';
+  var lang = window.LANG, L = window.L;
+
+  // language switch + links that keep the language
+  var nav = document.getElementById('langNav');
+  ['en', 'ru'].forEach(function (l) {
+    var a = document.createElement('a'); a.href = '?lang=' + l + location.hash; a.textContent = l.toUpperCase();
+    if (l === lang) a.setAttribute('aria-current', 'true');
+    nav.appendChild(a);
+  });
+  document.querySelectorAll('a[data-keep-lang]').forEach(function (a) { a.href = a.getAttribute('href') + '?lang=' + lang; });
+
+  var Sim = window.ShowerSim;
+  if (!Sim) return;
+  var dec = function (x, d) { var s = x.toFixed(d == null ? 1 : d); return lang === 'ru' ? s.replace('.', ',') : s; };
+  var sec = function (x) { return dec(x) + L(' с', ' s'); };
+
+  // ---------- timing table: values come from simulate() itself ----------
+  (function () {
+    var Ps = [0.5, 1, 2, 3];
+    var rows = Ps.map(function (P) { var r = Sim.simulate({ strategy: 'relay', N: 1, P: P, gap: 10 }); return { P: P, T: r.Tunit, hop: r.hop, cw: r.cw0, S: r.slotS }; });
+    var head = '<thead><tr><th>' + L('Величина', 'Quantity') + '</th><th>' + L('Формула', 'Formula') + '</th>' +
+      rows.map(function (r) { return '<th class="num">P = ' + sec(r.P) + '</th>'; }).join('') + '</tr></thead>';
+    var line = function (name, formula, get) {
+      return '<tr><td>' + name + '</td><td><code>' + formula + '</code></td>' + rows.map(function (r) { return '<td class="num">' + sec(get(r)) + '</td>'; }).join('') + '</tr>';
+    };
+    document.getElementById('timing').innerHTML = head + '<tbody>' +
+      line(L('мырг T', 'blink T'), 'max(0.5, 0.2·P)', function (r) { return r.T; }) +
+      line(L('шаг эстафеты', 'relay step (hop)'), 'T + 0.4·P + 0.3', function (r) { return r.hop; }) +
+      line(L('шаг до ответа №1', 'step to answer No. 1'), 'hop + T', function (r) { return r.hop + r.T; }) +
+      line(L('тишина', 'silence'), '3·T', function (r) { return 3 * r.T; }) +
+      line(L('стоп-сигнал', 'jam'), '5·T', function (r) { return 5 * r.T; }) +
+      line(L('окно паузы cw', 'pause window cw'), 'max(3, 6·T, 2·P)', function (r) { return r.cw; }) +
+      line(L('D (напор отстаёт от крана)', 'D (felt pressure lags the tap)'), '1.4·P + 0.3', function (r) { return 1.4 * r.P + 0.3; }) +
+      line(L('шаг шпаргалки S', 'sheet step S'), 'max(2, T + P + 1.5)', function (r) { return r.S; }) +
+      '</tbody>';
+  })();
+
+  // ---------- diagrams: a real roll call from a seeded run ----------
+  var LABEL = {
+    'синхро': ['синхро', 'sync'], 'хвост': ['хвост', 'tail'], 'стук': ['стук', 'knock'],
+    'стоп': ['стоп', 'jam'], 'жребий': ['жребий', 'lots'],
+  };
+  function label(s) {
+    if (LABEL[s]) return L(LABEL[s][0], LABEL[s][1]);
+    var m = /^каб\.(\d+)$/.exec(s); if (m) return L('каб. ' + m[1], 'stall ' + m[1]);
+    return s.replace('#', L('№', 'No. '));
+  }
+  var DIAG = {
+    entry: {
+      opts: { strategy: 'relay', N: 4, P: 0.5 }, roll: 3, kind: 'entry', expect: 4, a: -3.2, b: 0.4, zero: L('синхро', 'sync'),
+      cap: function (r, ro) {
+        return L('Четвёртый приходит к троим (N = 4, P = 0,5 с, сид 7). Ступенька вниз — он открыл кран; через случайную паузу — его синхро; ответ №1 через шаг + T, дальше №2 и №3 через шаг ' + sec(r.hop) + '. Насчитано мыргов: ' + ro.detected + ' из ' + ro.expected + ' → N = 4, новенький берёт номер 4.',
+          'A fourth person joins three (N = 4, P = 0.5 s, seed 7). Step down: they open the tap; after a random pause, their sync; answer No. 1 one step + T later, then No. 2 and No. 3 one step (' + sec(r.hop) + ') apart. Blinks counted: ' + ro.detected + ' of ' + ro.expected + ' → N = 4, the newcomer takes number 4.');
+      },
+    },
+    exit: {
+      opts: { strategy: 'relay', N: 4, P: 0.5 }, roll: 4, kind: 'exit', expect: 3, a: -1.4, b: 0.4, zero: L('начало переклички', 'roll call starts'),
+      cap: function (r, ro) {
+        return L('№2 уходит (тот же прогон). Ступенька вверх — кран закрыт. Перекличка: №1, дырка длиной в тишину (' + sec(3 * r.Tunit) + ') на месте №2, затем №3 и №4. Мыргов ' + ro.detected + ' из ' + ro.expected + ': №3 и №4 становятся №2 и №3, у всех N = 3.',
+          'No. 2 leaves (same run). Step up: the tap closes. Roll call: No. 1, a gap of one silence (' + sec(3 * r.Tunit) + ') where No. 2 was, then No. 3 and No. 4. Blinks: ' + ro.detected + ' of ' + ro.expected + '; No. 3 and No. 4 become No. 2 and No. 3, and everyone sets N = 3.');
+      },
+    },
+    tail: {
+      opts: { strategy: 'relay', N: 4, P: 0.5, pairGap: 0.5 }, roll: 2, kind: 'entry', expect: 4, a: -2.6, b: 0.4, zero: L('синхро', 'sync'),
+      cap: function (r, ro) {
+        return L('Третий и четвёртый приходят с разницей 0,5 с к двоим. Два шага вниз; синхро мыргает один, второй его слышит и ждёт. После №2 — тишина и мырг в хвосте. Мыргов ' + ro.detected + ' из ' + ro.expected + ' → N = 4 у всех.',
+          'The third and fourth arrive 0.5 s apart, joining two. Two steps down; one of them blinks the sync, the other hears it and waits. After No. 2, a silence and a blink in the tail. Blinks: ' + ro.detected + ' of ' + ro.expected + ' → N = 4 for everyone.');
+      },
+    },
+    sheet: {
+      opts: { strategy: 'sheet', N: 4, P: 0.5 }, roll: 3, kind: 'call', expect: 4, a: -1.6, b: 0, zero: L('скачок почувствовали', 'jump felt'), slots: true,
+      cap: function (r, ro) {
+        return L('Шпаргалка: четвёртый приходит к троим (N = 4, P = 0,5 с). Скачок напора почувствовали в 0; кабинка k мыргает в k·S (S = ' + sec(r.slotS) + ') плюс-минус реакция. Насчитано ' + ro.detected + ' из ' + ro.expected + '; слоты 5 и 6 пустые, но перекличка всё равно ждёт их.',
+          'The wall sheet: a fourth person joins three (N = 4, P = 0.5 s). The pressure jump is felt at 0; stall k blinks at k·S (S = ' + sec(r.slotS) + ') give or take reaction time. Counted ' + ro.detected + ' of ' + ro.expected + '; slots 5 and 6 are empty, but the roll call still waits for them.');
+      },
+    },
+  };
+
+  var NS = 'http://www.w3.org/2000/svg';
+  function el(name, attrs, parent, text) {
+    var e = document.createElementNS(NS, name);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+
+  function draw(fig) {
+    var d = DIAG[fig.getAttribute('data-diag')];
+    var r = Sim.simulate(d.opts), ro = r.rolls[d.roll];
+    var svg = fig.querySelector('svg'), cap = fig.querySelector('figcaption');
+    if (!ro || ro.kind !== d.kind || ro.voided || ro.merged || ro.detected !== d.expect) { // the run changed under the page: say so instead of drawing a wrong story
+      cap.textContent = L('Диаграмма не нарисована: прогон симулятора изменился.', 'Diagram not drawn: the simulator run has changed.');
+      svg.remove(); return;
+    }
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    var t0 = ro.sync + d.a, t1 = ro.end + d.b, dt = r.dt;
+    // viewBox = the real pixel width, so labels keep their size on a phone instead of shrinking with the drawing
+    var W = Math.max(320, Math.round(fig.clientWidth || 720)), H = 230, padL = 12, padR = 12, top = 46, bot = 196;
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    svg.setAttribute('aria-label', cap.textContent = d.cap(r, ro));
+    var X = function (t) { return padL + (t - t0) / (t1 - t0) * (W - padL - padR); };
+    var i0 = Math.max(0, Math.floor(t0 / dt)), i1 = Math.min(r.steps - 1, Math.ceil(t1 / dt));
+    var lo = Infinity, hi = -Infinity;
+    for (var i = i0; i <= i1; i++) [r.phRaw[i], r.phFelt[i]].forEach(function (v) { if (v != null) { lo = Math.min(lo, v); hi = Math.max(hi, v); } });
+    var pad = (hi - lo) * 0.08 || 0.01; lo -= pad; hi += pad;
+    var floor = bot - 20; // the strip under the curves holds the tap and slot labels
+    var Y = function (v) { return floor - (v - lo) / (hi - lo) * (floor - top); };
+
+    // roll-call band and blink lanes
+    el('rect', { class: 'band', x: X(ro.sync), y: top - 30, width: Math.max(0, X(Math.min(ro.end, t1)) - X(ro.sync)), height: bot - top + 30 }, svg);
+    // x grid: every second (every 2 s for long windows), labelled relative to the sync
+    var stepT = (t1 - t0) > 12 ? 2 : 1;
+    for (var s = Math.ceil((t0 - ro.sync) / stepT) * stepT; ro.sync + s <= t1; s += stepT) {
+      var x = X(ro.sync + s);
+      el('line', { class: 'gridl', x1: x, x2: x, y1: top - 4, y2: bot }, svg);
+      el('text', { class: 'tick', x: x, y: bot + 14, 'text-anchor': 'middle' }, svg, (s > 0 ? '+' : '') + dec(s, 0));
+    }
+    el('line', { class: 'axis', x1: padL, x2: W - padR, y1: bot, y2: bot }, svg);
+    el('text', { class: 'tick', x: W - padR, y: bot + 28, 'text-anchor': 'end' }, svg, L('секунды, 0 = ', 'seconds, 0 = ') + d.zero);
+    if (d.slots) for (var k = 1; k <= 6; k++) { // stall k's second on the wall clock: k·S after the jump was felt
+      var xs = X(ro.sync + k * r.slotS);
+      if (xs > W - padR) break;
+      el('line', { class: 'slot', x1: xs, x2: xs, y1: bot - 14, y2: bot + 4 }, svg);
+      el('text', { class: 'slotlab', x: xs + 3, y: bot - 4 }, svg, k + 'S');
+    }
+    // pressure: in the pipe (dashed) and as felt (solid)
+    [['raw', r.phRaw], ['felt', r.phFelt]].forEach(function (pair) {
+      var pts = [];
+      for (var i = i0; i <= i1; i++) { var v = pair[1][i]; if (v != null) pts.push(X(i * dt).toFixed(1) + ',' + Y(v).toFixed(1)); }
+      el('polyline', { class: pair[0], points: pts.join(' ') }, svg);
+    });
+    // taps opened / closed inside the window
+    var evs = r.events.filter(function (ev) { return ev.t >= t0 && ev.t <= t1; }), lastLab = null;
+    evs.forEach(function (ev) {
+      var x = X(ev.t);
+      el('line', { class: 'ev', x1: x, x2: x, y1: top - 8, y2: bot }, svg);
+      if (lastLab && lastLab.kind === ev.kind && x - lastLab.x < 90) { lastLab.n++; lastLab.node.textContent = lastLab.text + ' ×' + lastLab.n; return; }
+      var text = ev.kind === 'entry' ? L('кран открыт', 'tap opened') : L('кран закрыт', 'tap closed');
+      lastLab = { kind: ev.kind, x: x, n: 1, text: text, node: el('text', { class: 'evlab', x: x + 4, y: bot - 5 }, svg, text) };
+    });
+    // blinks as scheduled (who closed their hot tap, and for how long)
+    ro.pulses.slice().sort(function (p, q) { return p.t - q.t; }).forEach(function (p) {
+      var x = X(p.t), w = Math.max(2, X(p.t + p.dur) - x);
+      el('rect', { class: 'blink', x: x, y: top - 22, width: w, height: 8, rx: 2 }, svg);
+      el('text', { class: 'blab', x: x + w / 2, y: top - 27, 'text-anchor': 'middle' }, svg, label(p.label));
+    });
+  }
+
+  var figs = document.querySelectorAll('figure.diag');
+  function drawAll() {
+    figs.forEach(function (fig) {
+      if (!fig.querySelector('svg')) return;
+      try { draw(fig); } catch (e) { fig.querySelector('figcaption').textContent = String(e); }
+    });
+  }
+  drawAll();
+  var lastW = window.innerWidth, timer;
+  window.addEventListener('resize', function () {
+    if (window.innerWidth === lastW) return; lastW = window.innerWidth;
+    clearTimeout(timer); timer = setTimeout(drawAll, 150);
+  });
+  // a closed <details> has zero width: draw its diagram when it opens
+  document.querySelectorAll('details').forEach(function (dt) { dt.addEventListener('toggle', function () { if (dt.open) drawAll(); }); });
+
+  figs.forEach(function (fig) {
+    var lg = document.createElement('div'); lg.className = 'legend';
+    lg.innerHTML = '<span><i></i>' + L('напор горячей, как ощущается', 'hot pressure as felt') + '</span>' +
+      '<span><i class="raw"></i>' + L('напор в трубе', 'in the pipe') + '</span>' +
+      '<span><i class="blk"></i>' + L('мырг: горячий закрыт', 'blink: hot tap closed') + '</span>' +
+      '<span><i class="evk"></i>' + L('кто-то открыл или закрыл кран', 'someone opened or closed a tap') + '</span>';
+    if (fig.querySelector('svg')) fig.insertBefore(lg, fig.querySelector('figcaption'));
+  });
+})();
+</script>
+</body>
+</html>

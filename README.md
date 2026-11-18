@@ -14,7 +14,8 @@ This repo is a simulator and an interactive page that compare several ways out o
 
 The story of how it was built (with Claude, and why a dumb rule turned out to be almost as good) is in
 [ARTICLE.md](ARTICLE.md). The full technical write-up, with every table and known limitation, is in
-Russian: [README.ru.md](README.ru.md). The interactive page is in English and Russian (`?lang=en` / `?lang=ru`).
+Russian: [README.ru.md](README.ru.md). The interactive page is in English and Russian (`?lang=en` / `?lang=ru`). How each strategy works, step by step:
+[algorithms.html](https://komapc.github.io/shower-protocol/algorithms.html).
 
 ## Strategies
 
@@ -61,6 +62,7 @@ collision detection by temperature, and detecting an arrival mid-roll-call. Deta
 |---|---|
 | `sim.js` | the simulator (`ShowerSim.simulate(opts)`), runs in the browser and in node |
 | `index.html` | interactive page: sliders, temperature and pressure charts, a comparison table |
+| `algorithms.html` | the five strategies step by step, with timing diagrams drawn from `sim.js` ([live](https://komapc.github.io/shower-protocol/algorithms.html)) |
 | `tools/compare.js` | final comparison of simple / sheet / relay, checking everyone's N before each event |
 | `tools/strategies.js` | naive / patient / simple / relay on a few configurations |
 | `tools/sweep.js` | batch runs without a GUI: strategies, delay, interval, ablations, pairs, tempo, merges, triples, noise, simple, sheet |
