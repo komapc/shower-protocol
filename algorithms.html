@@ -359,8 +359,8 @@ D = 1.4·P + 0.3 s              <span class="c">// how long the felt pressure la
     </figure>
 
     <h3><span lang="en">Someone leaves</span><span lang="ru">Кто-то ушёл</span></h3>
-    <p lang="en">The leaver waits for silence and closes the tap; everyone feels the step up. A roll call of the remaining numbers follows, with a gap of one silence where the leaver’s number was. Everyone above the gap moves down one number, and everyone sets N − 1. In the simulator this last step does not use the count yet: see the list of assumptions below.</p>
-    <p lang="ru">Уходящий дожидается тишины и закрывает кран; все чувствуют ступеньку вверх. Дальше перекличка оставшихся номеров, и на месте ушедшего — дырка длиной в тишину. Все, кто выше дырки, сдвигаются на номер вниз, все ставят N − 1. В симуляторе этот шаг пока не опирается на счёт — см. список допущений ниже.</p>
+    <p lang="en">The leaver waits for silence and closes the tap; everyone feels the step up. A roll call of the remaining numbers follows, with a gap of one silence where the leaver’s number was. Everyone counts the blinks: that is the new N, and a person’s new number is the count of blinks before their own, plus one, so everyone above the gap moves down one. The roll call waits until the last blink has faded (3τ); otherwise that blink would not be counted.</p>
+    <p lang="ru">Уходящий дожидается тишины и закрывает кран; все чувствуют ступеньку вверх. Дальше перекличка оставшихся номеров, и на месте ушедшего — дырка длиной в тишину. Все считают мырги: это новое N, а новый номер — сколько мыргов было до своего, плюс один, так что все, кто выше дырки, сдвигаются на номер вниз. Перекличка ждёт, пока последний мырг спадёт (3τ), иначе его не засчитать.</p>
     <figure class="diag" data-diag="exit">
       <svg role="img"></svg>
       <figcaption></figcaption>
@@ -453,27 +453,25 @@ my number = answers + 1;  cold = table[N]
         <p><span class="badge true" style="margin:0"><span lang="en">reads true state</span><span lang="ru">истинное состояние</span></span></p>
         <ul lang="en">
           <li>the regulars’ early jump takes N from the people present;</li>
-          <li>the blink threshold uses the true head count;</li>
+          <li>the blink threshold, and at a departure the size of one blink, use the true head count;</li>
           <li>everyone shares one identical perception of pressure;</li>
           <li>“hearing” another person’s sync comes from the roll-call state;</li>
           <li>the Newton step takes its slope from the true state of all taps;</li>
           <li>the jump check waits while someone still has no number, which nobody could know;</li>
           <li>the relay runs by the clock from the first sync rather than “felt it, blink”;</li>
           <li>the step threshold in the “pressure moved mid roll call” check uses the true number of people who answered;</li>
-          <li>turning a spike’s area ratio into a head count uses the true number present;</li>
-          <li>the departure roll call’s count is not used: everyone sets N − 1 and numbers shift by the leaver’s true number (counted honestly, the last blink would be missed at P ≥ 2 s).</li>
+          <li>turning a spike’s area ratio into a head count uses the true number present.</li>
         </ul>
         <ul lang="ru">
           <li>ранний прыжок старожилов берёт N из числа присутствующих;</li>
-          <li>порог мырга считается от истинного числа людей;</li>
+          <li>порог мырга, а при уходе и мерка одного мырга, считаются от истинного числа людей;</li>
           <li>у всех одно и то же ощущение напора;</li>
           <li>«услышал чужое синхро» берётся из состояния переклички;</li>
           <li>шаг Ньютона берёт наклон из истинного состояния всех кранов;</li>
           <li>проверка прыжка откладывается, пока у кого-то нет номера, — этого никто знать не может;</li>
           <li>эстафета идёт по часам от первого синхро, а не «услышал — мыргнул»;</li>
           <li>порог ступеньки в проверке «напор сместился посреди переклички» берёт настоящее число ответивших;</li>
-          <li>перевод отношения площадей в число людей идёт при настоящем числе присутствующих;</li>
-          <li>счёт переклички при уходе не используется: все ставят N − 1, а номера сдвигаются по настоящему номеру ушедшего (честный счёт при P ≥ 2 с не засчитал бы последний мырг).</li>
+          <li>перевод отношения площадей в число людей идёт при настоящем числе присутствующих.</li>
         </ul>
       </div>
       <div>

@@ -68,10 +68,16 @@ commits and nine pull requests, almost all of them fixes. Some of what turned up
   actually left. But leavers wait for silence, so a long roll call also postponed the check.
   Measured at the *planned* time, wrong N for a pair arriving together (P = 3 s, N = 6) was 43 %,
   not 17 %.
+- **The departure roll call was only for show.** This one turned up later, in a review before
+  publishing. Its count was thrown away: everyone just subtracted one, and the numbers shifted by the
+  leaver's true number. Counted honestly, it would have missed the last blink at every departure once
+  P ≥ 2 s, because the roll call ended before that blink had faded. Now it waits for the blink to fade,
+  N is what was counted, and each person's new number is the count of blinks before their own, plus
+  one. The departure roll call got 1.8 s longer at P = 3 s.
 
 After this the relay protocol gives 0 % wrong N for single arrivals (with no perception noise; noise of
 a tenth of one blink brings it to 1–2 % with six people), and everyone converges before
-the next arrival in every run up to P = 3 s, with a median of 10–28 s. It still fails at slow
+the next arrival in every run up to P = 3 s, with a median of 10–30 s. It still fails at slow
 pressure with many people: at P = 5 s and N = 6, 32 % of events (arrivals and the departure) don't
 converge in time.
 
@@ -94,7 +100,7 @@ that didn't converge before the next one:
 | | simple nudging | relay protocol |
 |---|---|---|
 | 2 / 4 / 6 people, fast pressure (P = 0.5 s) | 33 / 32 / 32 s; 0 / 0 / **27 %** | 10 / 15 / 19 s; 0 % |
-| 2 / 4 / 6 people, slow pressure (P = 3 s) | same (doesn't use pressure) | 16 / 24 / 28 s; 0 % |
+| 2 / 4 / 6 people, slow pressure (P = 3 s) | same (doesn't use pressure) | 16 / 26 / 30 s; 0 % |
 | 6 people, two arrive together, P = 0.5 s | 33 s; 18 % | 18 s; 0 % |
 | 4 people, water delay L = 8 / 12 s | 76 / 100 % don't converge | 0 % |
 | discomfort, 6 people, P = 3 s (°C·s per person) | **234** | 282 |
@@ -104,15 +110,12 @@ crowds and long pipes where the simple rule falls apart. So this is not a "the d
 story. It's more of an "it's not clear the clever way was worth it" story, for three reasons.
 
 **1. Its numbers rely on things a person can't know.** The README has a section titled "where the
-agents know more than they could". In the simulation, the people take the blink threshold from the
-true number of people present, take the slope for the Newton correction from the true state of all
-taps, share one identical perception of pressure, and "hear" someone else's sync from the
-simulator's state instead of from the felt pressure. The departure roll call is only for show: its
-count is thrown away, everyone just subtracts one, and the numbers shift by the leaver's true number.
-Counted honestly, it would miss the last blink at every departure once P ≥ 2 s. The parts that work
-from honest perception are
-the blink counting itself, the double-sync detection, the jam signal and collision detection by
-temperature. The rest are assumptions, not results.
+agents know more than they could". In the simulation, the people take the blink threshold (and, at a
+departure, the size of one blink) from the true number of people present, take the slope for the
+Newton correction from the true state of all taps, share one identical perception of pressure, and
+"hear" someone else's sync from the simulator's state instead of from the felt pressure. The parts
+that work from honest perception are the blink counting itself, the double-sync detection, the jam
+signal and collision detection by temperature. The rest are assumptions, not results.
 
 **2. Nobody could do it in a shower.** Comparing the areas of pressure dips, telling a merged double
 sync from a single one, drawing lots by blinking: this is a protocol for microcontrollers, not for
