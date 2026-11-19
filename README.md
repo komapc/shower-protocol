@@ -51,7 +51,9 @@ only with many people or long pipes; the wall sheet is the middle ground a human
 These parts of `relay` read the true state, so their numbers are assumptions, not results: the early
 jump takes N from the people present; the blink threshold uses the true head count; everyone shares one
 identical perception of pressure; "hearing" another person's sync comes from the simulator's roll-call
-state; the Newton step takes its slope from the true state of all taps. The honest parts: counting
+state; the Newton step takes its slope from the true state of all taps; the departure roll call's count
+is not used (everyone sets N − 1 and numbers shift by the leaver's true number; counted honestly, it
+would miss the last blink at P ≥ 2 s). The honest parts: counting
 blinks from felt pressure, double-sync detection by dip area and the lot drawing, the jam signal,
 collision detection by temperature, and detecting an arrival mid-roll-call. Details in
 [README.ru.md](README.ru.md#допущения-модели-где-агенты-знают-больше-чем-могли-бы).

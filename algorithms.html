@@ -359,8 +359,8 @@ D = 1.4·P + 0.3 s              <span class="c">// how long the felt pressure la
     </figure>
 
     <h3><span lang="en">Someone leaves</span><span lang="ru">Кто-то ушёл</span></h3>
-    <p lang="en">The leaver waits for silence and closes the tap; everyone feels the step up. A roll call of the remaining numbers follows, with a gap of one silence where the leaver’s number was. Everyone above the gap moves down one number, and everyone sets N − 1.</p>
-    <p lang="ru">Уходящий дожидается тишины и закрывает кран; все чувствуют ступеньку вверх. Дальше перекличка оставшихся номеров, и на месте ушедшего — дырка длиной в тишину. Все, кто выше дырки, сдвигаются на номер вниз, все ставят N − 1.</p>
+    <p lang="en">The leaver waits for silence and closes the tap; everyone feels the step up. A roll call of the remaining numbers follows, with a gap of one silence where the leaver’s number was. Everyone above the gap moves down one number, and everyone sets N − 1. In the simulator this last step does not use the count yet: see the list of assumptions below.</p>
+    <p lang="ru">Уходящий дожидается тишины и закрывает кран; все чувствуют ступеньку вверх. Дальше перекличка оставшихся номеров, и на месте ушедшего — дырка длиной в тишину. Все, кто выше дырки, сдвигаются на номер вниз, все ставят N − 1. В симуляторе этот шаг пока не опирается на счёт — см. список допущений ниже.</p>
     <figure class="diag" data-diag="exit">
       <svg role="img"></svg>
       <figcaption></figcaption>
@@ -460,7 +460,8 @@ my number = answers + 1;  cold = table[N]
           <li>the jump check waits while someone still has no number, which nobody could know;</li>
           <li>the relay runs by the clock from the first sync rather than “felt it, blink”;</li>
           <li>the step threshold in the “pressure moved mid roll call” check uses the true number of people who answered;</li>
-          <li>turning a spike’s area ratio into a head count uses the true number present.</li>
+          <li>turning a spike’s area ratio into a head count uses the true number present;</li>
+          <li>the departure roll call’s count is not used: everyone sets N − 1 and numbers shift by the leaver’s true number (counted honestly, the last blink would be missed at P ≥ 2 s).</li>
         </ul>
         <ul lang="ru">
           <li>ранний прыжок старожилов берёт N из числа присутствующих;</li>
@@ -471,7 +472,8 @@ my number = answers + 1;  cold = table[N]
           <li>проверка прыжка откладывается, пока у кого-то нет номера, — этого никто знать не может;</li>
           <li>эстафета идёт по часам от первого синхро, а не «услышал — мыргнул»;</li>
           <li>порог ступеньки в проверке «напор сместился посреди переклички» берёт настоящее число ответивших;</li>
-          <li>перевод отношения площадей в число людей идёт при настоящем числе присутствующих.</li>
+          <li>перевод отношения площадей в число людей идёт при настоящем числе присутствующих;</li>
+          <li>счёт переклички при уходе не используется: все ставят N − 1, а номера сдвигаются по настоящему номеру ушедшего (честный счёт при P ≥ 2 с не засчитал бы последний мырг).</li>
         </ul>
       </div>
       <div>
