@@ -336,11 +336,12 @@
     // отношение от k до g(k), порог между k и k+1 — посередине между g(k) и k+1 (между одним и двумя — те же
     // 1,5). В хвосте и в слоте эстафеты мыргают точно разом (exact): порог посередине между g(k) и g(k+1).
     // Ступенька при n людях — то же знание, что и табличка (как в countPulses); абсолютный напор не нужен.
-    function kOf(ratio, exact) {
-      const n = Math.max(1, present().length), Gh = n * p.hotMark;
+    // kMax: при входе в одном всплеске самое большее n − 1 человек (новенький в слотах не мыргает), при уходе — все n.
+    function kOf(ratio, exact, kMax) {
+      const n = Math.max(1, present().length), Gh = n * p.hotMark, top = Math.max(1, kMax ?? n - 1);
       const h = (k) => 1 / (1 + p.Rh * Math.max(0, Gh - k * p.hotMark)) - 1 / (1 + p.Rh * Gh);
-      for (let k = 1; k < n; k++) if (ratio < (h(k) / h(1) + (exact ? h(k + 1) / h(1) : k + 1)) / 2) return k;
-      return Math.max(1, n - 1);
+      for (let k = 1; k < top; k++) if (ratio < (h(k) / h(1) + (exact ? h(k + 1) / h(1) : k + 1)) / 2) return k;
+      return top;
     }
     const baseAt = (t) => phFelt[Math.max(0, Math.round(t / dt) - 1)];
     // База для ответов и хвоста. Мырг только поднимает напор, приход нового — только опускает. Если
@@ -545,7 +546,8 @@
       const leaverNum = a.num;
       const go = () => {
         if (roll) { schedule(roll.end + 0.1, go); return; }
-        const t = cur + perceive;
+        // ступеньку надо услышать (при P = 0 perceive = 0): иначе база для площадей — напор ещё до ухода
+        const t = cur + Math.max(perceive, hear);
         const r = { kind: 'exit', sync: t, initiators: [], pulses: [], ev: a.ev };
         roll = r; rolls.push(r);
         const numbered = present().filter(x => x.num > 0);
@@ -556,11 +558,29 @@
           if (!gapDone && g[0].num > leaverNum) { tt += silence; gapDone = true; }
           g.forEach(x => pulse(x, tt, r, '#' + x.num));
         });
-        r.end = tt + Tunit + dPure + 0.3;
+        // последний мырг должен успеть спасть (до 5 %, 3·tau), иначе счётчик пиков его не засчитает
+        r.end = tt + Tunit + dPure + 3 * tau + 0.3;
         for (const x of present()) x.frozen = true;
         schedule(r.end, () => {
-          r.detected = countPulses(r.sync, r.end); r.expected = r.pulses.length;
-          for (const x of numbered) { if (x.num > leaverNum) x.num -= 1; x.belief = Math.max(1, (x.belief || 1) - 1); if (x.tableN !== x.belief) setTable(x, x.belief); }
+          // Каждый всплеск считается по площади, как слот на входе: у двоих с общим номером (в пустой душевой
+          // синхро слились, пересчёт починил N, но не номер) мырги сливаются в один всплеск двойной площади.
+          // Синхро при уходе нет, поэтому мерка одного мырга — «ступенька при n людях» × T: то же знание,
+          // что порог в countPulses. N — сколько человек насчитали; новый номер — сколько насчитали до своего
+          // мырга, плюс один (свой мырг каждый знает: его пик — через dPure + T после начала).
+          const peaks = countPulses(r.sync, r.end, true), base = baseAt(r.sync), unit = stepH(present().length) * Tunit;
+          const ks = peaks.map((tp, i) => {
+            const t0 = i ? (peaks[i - 1] + tp) / 2 : r.sync, t1 = i + 1 < peaks.length ? (tp + peaks[i + 1]) / 2 : r.end;
+            return p.mergeAccept ? kOf(area(t0, t1, base) / unit, true, present().length) : 1;
+          });
+          const counted = ks.reduce((s, k) => s + k, 0);
+          r.detected = counted; r.expected = r.pulses.length;
+          for (const x of numbered) {
+            if (!x.present) continue;
+            const ownPeak = r.pulses.find(q => q.who === x.id).t + dPure + Tunit;
+            x.num = 1 + ks.filter((k, i) => peaks[i] < ownPeak - hop / 2).reduce((s, k) => s + k, 0);
+            x.belief = Math.max(1, counted); if (x.tableN !== x.belief) setTable(x, x.belief);
+            schedule(r.end + p.L + 1, () => check(x)); // как после прихода: промах прыжка больше 2 °C — пересчёт
+          }
           roll = null; lastQuiet = r.end;
           release(r.end);
           rebase();
