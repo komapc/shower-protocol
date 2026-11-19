@@ -1,7 +1,7 @@
 # I asked Claude to invent a protocol for a shared shower. A dumb rule was almost as good.
 
 *Draft. All numbers come from the simulator in this repo (`sim.js`); unless noted, 100 random seeds
-per row, water delay L = 5 s, someone arrives or leaves every 45 s.*
+per row, water delay L = 5 s, someone arrives or leaves every 45 s, no noise in the felt pressure.*
 
 ## The problem
 
@@ -55,7 +55,7 @@ commits and nine pull requests, almost all of them fixes. Some of what turned up
   itself a temperature shock for everyone, and the roll call took forever. Now T = max(0.5 s, 0.2·P).
 - **Arriving mid-roll-call spoiled the count.** The roll call now gets discarded and repeated if the
   pressure baseline moved during it.
-- **Two people arriving at once.** With slow pressure their sync blinks merged in almost half of
+- **Two people arriving at once.** With slow pressure their sync blinks merged in about 40 % of
   simultaneous arrivals. Originally only the jam signal caught this: wait, jam, repeat, which didn't
   fit before the next arrival. Now people compare the *area* of the pressure dip with a single answer
   (1.5× or more means two syncs) and then draw lots for the duplicate number.
@@ -69,9 +69,11 @@ commits and nine pull requests, almost all of them fixes. Some of what turned up
   Measured at the *planned* time, wrong N for a pair arriving together (P = 3 s, N = 6) was 43 %,
   not 17 %.
 
-After this the relay protocol gives 0 % wrong N for single arrivals, and everyone converges before
+After this the relay protocol gives 0 % wrong N for single arrivals (with no perception noise; noise of
+a tenth of one blink brings it to 1–2 % with six people), and everyone converges before
 the next arrival in every run up to P = 3 s, with a median of 10–28 s. It still fails at slow
-pressure with many people: at P = 5 s and N = 6, 32 % of arrivals don't converge in time.
+pressure with many people: at P = 5 s and N = 6, 32 % of events (arrivals and the departure) don't
+converge in time.
 
 ## Step 3: compare it with a dumb rule
 
@@ -86,7 +88,8 @@ counting, which is my suggestion turned into code:
 > fraction of how wrong the temperature feels, at most 3 % of the tap's range. Ignore errors
 > under 0.3 °C.
 
-Median convergence / share of arrivals that didn't converge before the next one:
+Median convergence (over the events that converged) / share of events, arrivals and the departure,
+that didn't converge before the next one:
 
 | | simple nudging | relay protocol |
 |---|---|---|
@@ -104,7 +107,10 @@ story. It's more of an "it's not clear the clever way was worth it" story, for t
 agents know more than they could". In the simulation, the people take the blink threshold from the
 true number of people present, take the slope for the Newton correction from the true state of all
 taps, share one identical perception of pressure, and "hear" someone else's sync from the
-simulator's state instead of from the felt pressure. The parts that work from honest perception are
+simulator's state instead of from the felt pressure. The departure roll call is only for show: its
+count is thrown away, everyone just subtracts one, and the numbers shift by the leaver's true number.
+Counted honestly, it would miss the last blink at every departure once P ≥ 2 s. The parts that work
+from honest perception are
 the blink counting itself, the double-sync detection, the jam signal and collision detection by
 temperature. The rest are assumptions, not results.
 
@@ -123,7 +129,8 @@ convergence takes ~42 s and only fits if people arrive no more than every 90 s.
 
 I also asked for a middle ground a human could actually follow, simple enough to hang on the wall of
 a shared shower room. The result is five lines on the wall plus a clock
-("blink your stall number × S seconds after the pressure jumps"). It counts N exactly (0 % wrong N),
+("blink your stall number × S seconds after the pressure jumps"). It counts N exactly (0 % wrong N,
+still 0 % with perception noise of a tenth of a blink),
 but with slow pressure the roll call over all six stalls takes long; at P = 2 s it only keeps up if
 people arrive no more often than every 90 seconds.
 
